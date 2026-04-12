@@ -1,5 +1,14 @@
 node_modules/
 .env
-serviceAccountKey.json
-serviceAccountKey.json.json
+
+# بيانات الصيدلية المحلية — لا تُرفع على GitHub أبداً
+config.json
+pharmacy.db
+pharmacy.db-shm
+pharmacy.db-wal
+
+# ملفات البناء
+dist/
+*.exe
+
 *.log
