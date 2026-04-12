@@ -1,0 +1,37 @@
+{
+  "name": "nupco-tracker",
+  "version": "2.0.0",
+  "description": "بوت تليجرام لتتبع انتهاء صلاحية أدوية نوبكو",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "web": "node server.js",
+    "web:dev": "node --watch server.js"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "nupco",
+    "pharmacy",
+    "expiry"
+  ],
+  "author": "Fahad",
+  "license": "ISC",
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@napi-rs/canvas": "^0.1.97",
+    "@neondatabase/serverless": "^0.10.4",
+    "bcryptjs": "^3.0.3",
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1",
+    "groq-sdk": "^1.1.2",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.1.1",
+    "node-cron": "^3.0.3",
+    "node-telegram-bot-api": "^0.67.0",
+    "openai": "^6.33.0",
+    "pdf-parse": "^1.1.4",
+    "pdfjs-dist": "^3.11.174"
+  }
+}

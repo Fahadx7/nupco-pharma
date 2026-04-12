@@ -1,0 +1,29 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "nupco-bot (dev)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--watch", "index.js"],
+      "port": 3001
+    },
+    {
+      "name": "nupco-bot (start)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["index.js"],
+      "port": 3001
+    },
+    {
+      "name": "nupco-web (dev)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--watch", "server.js"],
+      "port": 3000
+    },
+    {
+      "name": "nupco-web (start)",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["server.js"],
+      "port": 3000
+    }
+  ]
+}
