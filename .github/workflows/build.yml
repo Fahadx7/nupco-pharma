@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'رقم الإصدار (مثال: v3.1.0)'
+        description: 'رقم الإصدار'
         required: true
-        default: 'v3.0.0'
+        default: 'v3.0.2'
 
 jobs:
   build-windows:
@@ -17,97 +17,74 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # ── 1. سحب الكود ────────────────────────────────────────────────────────
-      - name: سحب الكود
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      # ── 2. إعداد Node.js 20 ─────────────────────────────────────────────────
-      - name: إعداد Node.js 20
+      - name: إعداد Node.js 18
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '18'
 
-      # ── 3. تثبيت المكتبات (يُجمّع better-sqlite3 على Windows) ───────────────
       - name: تثبيت المكتبات
         shell: pwsh
         run: npm install --legacy-peer-deps
 
-      # ── 4. تثبيت pkg ─────────────────────────────────────────────────────────
       - name: تثبيت pkg
         shell: pwsh
-        run: npm install -g pkg
+        run: npm install -g pkg@5.8.1
 
-      # ── 5. بناء الـ exe ──────────────────────────────────────────────────────
       - name: بناء الـ exe
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          pkg . --targets node20-win-x64 --output dist/medtracker.exe
-          Write-Host "✅ تم بناء medtracker.exe"
+          pkg . --targets node18-win-x64 --output dist/medtracker.exe
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          Write-Host "✅ medtracker.exe جاهز"
 
-      # ── 6. نسخ better_sqlite3.node بجانب الـ exe ────────────────────────────
       - name: نسخ محرك SQLite
         shell: pwsh
         run: |
-          $src = "node_modules\better-sqlite3\build\Release\better_sqlite3.node"
+          $src = "node_modules\better-sqlite3\prebuilds\win32-x64\node.napi.node"
+          $src2 = "node_modules\better-sqlite3\build\Release\better_sqlite3.node"
           if (Test-Path $src) {
             Copy-Item $src "dist\better_sqlite3.node"
-            Write-Host "✅ تم نسخ better_sqlite3.node"
+            Write-Host "✅ prebuilds"
+          } elseif (Test-Path $src2) {
+            Copy-Item $src2 "dist\better_sqlite3.node"
+            Write-Host "✅ build/Release"
           } else {
-            Write-Error "❌ لم يُعثر على better_sqlite3.node — تأكد أن npm ci نجح"
-            exit 1
+            Write-Host "⚠️ بحث في كل المجلدات..."
+            $found = Get-ChildItem -Path "node_modules\better-sqlite3" -Recurse -Filter "*.node" | Select-Object -First 1
+            if ($found) {
+              Copy-Item $found.FullName "dist\better_sqlite3.node"
+              Write-Host "✅ وُجد في $($found.FullName)"
+            } else {
+              Write-Error "❌ لم يُعثر على better_sqlite3.node"
+              exit 1
+            }
           }
 
-      # ── 7. إنشاء ملف التعليمات ───────────────────────────────────────────────
-      - name: إنشاء تعليمات التثبيت
+      - name: إنشاء تعليمات
         shell: pwsh
         run: |
-          $version = if ("${{ github.ref_name }}") { "${{ github.ref_name }}" } else { "${{ inputs.version }}" }
-          $content = @"
-MedTracker $version — متتبع الادوية
-=====================================
+          $v = if ("${{ github.ref_name }}") { "${{ github.ref_name }}" } else { "${{ inputs.version }}" }
+          $c = "MedTracker $v`r`n=================`r`n`r`n1. الملفان يجب ان يكونا في نفس المجلد:`r`n   - medtracker.exe`r`n   - better_sqlite3.node`r`n`r`n2. شغل medtracker.exe`r`n`r`n3. افتح المتصفح على http://localhost:3000`r`n`r`nالدعم: github.com/fahadx7/nupco-pharma"
+          [IO.File]::WriteAllText("dist\README.txt", $c, [Text.Encoding]::UTF8)
 
-خطوات التثبيت:
-1. تاكد ان الملفين في نفس المجلد:
-   - medtracker.exe
-   - better_sqlite3.node
-
-2. شغل medtracker.exe
-
-3. سيفتح المتصفح تلقائيا على صفحة الاعداد
-
-4. ستحتاج الى:
-   - توكن البوت    : من @BotFather في تيليجرام
-   - Chat ID       : من @userinfobot في تيليجرام
-   - مفتاح Groq AI : مجانا من console.groq.com
-
-5. لوحة التحكم: http://localhost:3000
-
-الدعم: github.com/fahadx7/nupco-pharma
-"@
-          [System.IO.File]::WriteAllText("dist\README.txt", $content, [System.Text.Encoding]::UTF8)
-          Write-Host "✅ تم انشاء README.txt"
-
-      # ── 8. ضغط الملفات ───────────────────────────────────────────────────────
-      - name: ضغط الملفات في ZIP
+      - name: ضغط ZIP
         shell: pwsh
         run: |
-          $version = if ("${{ github.ref_name }}") { "${{ github.ref_name }}" } else { "${{ inputs.version }}" }
-          $zipName = "medtracker-$version-windows.zip"
-          Compress-Archive -Path dist\medtracker.exe, dist\better_sqlite3.node, dist\README.txt `
-                           -DestinationPath "dist\$zipName" -Force
-          Write-Host "✅ تم انشاء $zipName"
-          Add-Content -Path $env:GITHUB_ENV -Value "ZIP_NAME=$zipName"
+          $v = if ("${{ github.ref_name }}") { "${{ github.ref_name }}" } else { "${{ inputs.version }}" }
+          $z = "medtracker-$v-windows.zip"
+          Compress-Archive -Path dist\medtracker.exe, dist\better_sqlite3.node, dist\README.txt -DestinationPath "dist\$z" -Force
+          Add-Content $env:GITHUB_ENV "ZIP_NAME=$z"
 
-      # ── 9. رفع artifact ──────────────────────────────────────────────────────
-      - name: رفع الـ artifact
+      - name: رفع artifact
         uses: actions/upload-artifact@v4
         with:
           name: medtracker-windows
           path: dist/*.zip
 
-      # ── 10. إنشاء GitHub Release ─────────────────────────────────────────────
-      - name: إنشاء GitHub Release
+      - name: GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
@@ -117,25 +94,10 @@ MedTracker $version — متتبع الادوية
             ## 💊 MedTracker ${{ github.ref_name }}
             > متتبع الأدوية — مجاني لجميع صيدليات المملكة
 
-            ### 📥 طريقة التثبيت:
-            1. نزّل `${{ env.ZIP_NAME }}` من الأسفل
-            2. فك الضغط — ستجد ملفين **يجب أن يبقيا في نفس المجلد**
-            3. شغّل `medtracker.exe`
-            4. سيفتح المتصفح تلقائياً لإعداد البوت
-
-            ### ✅ ما ستحتاجه:
-            | المطلوب | الحصول عليه |
-            |--------|------------|
-            | توكن البوت | [@BotFather](https://t.me/BotFather) في تليجرام |
-            | Chat ID | [@userinfobot](https://t.me/userinfobot) في تليجرام |
-            | مفتاح Groq AI | مجاناً من [console.groq.com](https://console.groq.com) |
-
-            ### 💡 المميزات:
-            - 📸 مسح فواتير نوبكو وعلب الأدوية (صور + PDF)
-            - 📋 مخزون خاص بكل صيدلية — محلي 100%
-            - 🔔 تقرير يومي الساعة 9 صباحاً
-            - 🌐 لوحة تحكم على `localhost:3000`
-            - ⚙️ تشغيل تلقائي مع Windows
+            ### 📥 التثبيت:
+            1. نزّل الملف من الأسفل وفك الضغط
+            2. شغّل `medtracker.exe` (الملفان يجب في نفس المجلد)
+            3. اتبع خطوات الإعداد في المتصفح
 
             ---
             صنع بـ ❤️ بواسطة [FHADAI](https://x.com/aboamran2011)
