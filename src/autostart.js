@@ -9,7 +9,7 @@ const STARTUP_DIR = path.join(
     'AppData', 'Roaming', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup'
 );
 
-const VBS_NAME = 'nupco-pharma.vbs';
+const VBS_NAME = 'medtracker.vbs';
 const VBS_PATH = path.join(STARTUP_DIR, VBS_NAME);
 
 /**
@@ -61,7 +61,7 @@ function showStartupNotification(pharmacyName) {
 Add-Type -AssemblyName System.Windows.Forms
 $notify = New-Object System.Windows.Forms.NotifyIcon
 $notify.Icon = [System.Drawing.SystemIcons]::Information
-$notify.BalloonTipTitle = 'نوبكو فارما'
+$notify.BalloonTipTitle = 'MedTracker'
 $notify.BalloonTipText  = '${pharmacyName} — البوت يعمل الآن ✓'
 $notify.Visible = $true
 $notify.ShowBalloonTip(4000)

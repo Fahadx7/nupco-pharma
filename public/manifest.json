@@ -1,7 +1,7 @@
 {
-  "name": "نوبكو فارما — مخزون الأدوية",
-  "short_name": "نوبكو فارما",
-  "description": "إدارة مخزون أدوية صيدلية نوبكو",
+  "name": "MedTracker — متتبع الأدوية",
+  "short_name": "MedTracker",
+  "description": "متتبع الأدوية — تتبع صلاحية الأدوية لصيدليات المملكة",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait-primary",

@@ -1,4 +1,4 @@
-name: 🏗️ بناء وإصدار نوبكو فارما
+name: 🏗️ بناء وإصدار MedTracker
 
 # يُشغَّل تلقائياً عند رفع tag مثل: git tag v3.1.0 && git push --tags
 on:
@@ -43,7 +43,7 @@ jobs:
       - name: بناء الـ exe
         run: |
           mkdir -p dist
-          pkg . --targets node18-win-x64 --output dist/nupco-pharma.exe
+          pkg . --targets node18-win-x64 --output dist/medtracker.exe
 
       # ── 6. نسخ الملف الأصلي للـ SQLite بجانب الـ exe ───────────────────────
       - name: نسخ better_sqlite3.node
@@ -67,7 +67,7 @@ jobs:
 
           $content = @"
           ╔═══════════════════════════════════════════╗
-          ║       💊 نوبكو فارما $version              ║
+          ║         💊 MedTracker $version               ║
           ║    بوت تتبع صلاحية الأدوية — مجاني        ║
           ╚═══════════════════════════════════════════╝
 
@@ -80,10 +80,10 @@ jobs:
           خطوات التثبيت:
           ──────────────
           1. تأكد أن الملفين في نفس المجلد:
-             📄 nupco-pharma.exe
+             📄 medtracker.exe
              📄 better_sqlite3.node
 
-          2. شغّل nupco-pharma.exe
+          2. شغّل medtracker.exe
 
           3. سيفتح المتصفح تلقائياً على صفحة الإعداد
 
@@ -109,7 +109,7 @@ jobs:
         run: |
           $version = "${{ github.ref_name }}"
           if (-not $version) { $version = "${{ inputs.version }}" }
-          $zipName = "nupco-pharma-$version-windows.zip"
+          $zipName = "medtracker-$version-windows.zip"
 
           Compress-Archive -Path dist\* -DestinationPath "dist\$zipName" -Force
           Write-Host "✅ تم إنشاء $zipName"
@@ -119,9 +119,9 @@ jobs:
       - name: رفع الـ artifact
         uses: actions/upload-artifact@v4
         with:
-          name: nupco-pharma-windows
+          name: medtracker-windows
           path: |
-            dist/nupco-pharma.exe
+            dist/medtracker.exe
             dist/better_sqlite3.node
             dist/تعليمات-التثبيت.txt
 
@@ -130,10 +130,10 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          name: "💊 نوبكو فارما ${{ github.ref_name }}"
+          name: "💊 MedTracker ${{ github.ref_name }}"
           files: dist/${{ env.ZIP_NAME }}
           body: |
-            ## 💊 نوبكو فارما ${{ github.ref_name }}
+            ## 💊 MedTracker ${{ github.ref_name }}
             > بوت تليجرام لتتبع صلاحية الأدوية — مجاني لجميع صيدليات المملكة
 
             ---
@@ -142,7 +142,7 @@ jobs:
 
             1. نزّل ملف `${{ env.ZIP_NAME }}` من الأسفل
             2. فك الضغط في أي مجلد
-            3. شغّل `nupco-pharma.exe`
+            3. شغّل `medtracker.exe`
             4. سيفتح المتصفح تلقائياً لإعداد البوت
 
             ### ✅ ما ستحتاجه:

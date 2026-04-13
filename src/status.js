@@ -98,7 +98,7 @@ function buildStatusHtml(pharmacyName, stats, autoStart, uptime) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>${pharmacyName} — لوحة التحكم</title>
+<title>MedTracker — لوحة التحكم</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background: #f1f5f9; color: #1e293b; min-height: 100vh; }
@@ -139,13 +139,16 @@ function buildStatusHtml(pharmacyName, stats, autoStart, uptime) {
   .uptime { font-size: 12px; color: rgba(255,255,255,.7); margin-top: 4px; }
   #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: #1e293b; color: white; padding: 10px 22px; border-radius: 10px; font-size: 14px; transition: transform .3s; opacity: 0; }
   #toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+  footer { text-align: center; padding: 24px; color: #94a3b8; font-size: 12px; }
+  footer a { color: #2563eb; text-decoration: none; font-weight: 600; }
+  footer a:hover { text-decoration: underline; }
 </style>
 </head>
 <body>
 
 <header>
   <div>
-    <h1>💊 ${pharmacyName} <span>— بوت نوبكو</span></h1>
+    <h1>💊 ${pharmacyName} <span>— MedTracker</span></h1>
     <div class="uptime">يعمل منذ: ${uptime}</div>
   </div>
   <span class="badge">● يعمل</span>
@@ -205,6 +208,11 @@ function buildStatusHtml(pharmacyName, stats, autoStart, uptime) {
 </div>
 
 <div id="toast"></div>
+
+<footer>
+  &copy; 2025 MedTracker &nbsp;|&nbsp;
+  <a href="https://x.com/aboamran2011" target="_blank">FHADAI @ X</a>
+</footer>
 
 <script>
 function toast(msg) {

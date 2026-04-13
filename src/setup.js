@@ -61,7 +61,7 @@ function startSetupWizard() {
         const server = http.createServer(app);
         server.listen(3000, '127.0.0.1', () => {
             console.log('\n═══════════════════════════════════════════');
-            console.log('  💊 نوبكو فارما — إعداد أولي مطلوب');
+            console.log('  💊 MedTracker — إعداد أولي مطلوب');
             console.log('═══════════════════════════════════════════');
             console.log('  افتح المتصفح على: http://localhost:3000');
             console.log('═══════════════════════════════════════════\n');
@@ -84,7 +84,7 @@ const SETUP_HTML = `<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>إعداد نوبكو فارما</title>
+<title>إعداد MedTracker</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -178,6 +178,9 @@ const SETUP_HTML = `<!DOCTYPE html>
   .success .big { font-size: 64px; margin-bottom: 12px; }
   .success h2 { color: #16a34a; font-size: 22px; margin-bottom: 8px; }
   .success p { color: #6b7280; font-size: 14px; line-height: 1.6; }
+  .footer { text-align: center; margin-top: 28px; padding-top: 18px; border-top: 1px solid #f3f4f6; font-size: 12px; color: #9ca3af; }
+  .footer a { color: #2563eb; text-decoration: none; font-weight: 600; }
+  .footer a:hover { text-decoration: underline; }
   .divider { height: 1px; background: #f3f4f6; margin: 24px 0; }
 </style>
 </head>
@@ -185,8 +188,8 @@ const SETUP_HTML = `<!DOCTYPE html>
 <div class="card">
   <div class="header">
     <span class="icon">💊</span>
-    <h1>نوبكو فارما</h1>
-    <p>إعداد البوت — مرة واحدة فقط ✓</p>
+    <h1>MedTracker</h1>
+    <p>متتبع الأدوية — إعداد البوت مرة واحدة فقط ✓</p>
   </div>
 
   <div id="form-wrap">
@@ -239,6 +242,10 @@ const SETUP_HTML = `<!DOCTYPE html>
       البوت يعمل الآن.<br>
       افتح تليجرام وأرسل <strong>/start</strong> للبوت الخاص بك.
     </p>
+  </div>
+  <div class="footer">
+    &copy; 2025 MedTracker &nbsp;|&nbsp;
+    <a href="https://x.com/aboamran2011" target="_blank">FHADAI @ X</a>
   </div>
 </div>
 

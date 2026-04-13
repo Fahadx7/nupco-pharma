@@ -8,7 +8,7 @@ if (process.pkg) {
     if (!fs.existsSync(bindingPath)) {
         console.error('❌ الملف better_sqlite3.node غير موجود بجانب البرنامج.');
         console.error('   تأكد أن كلا الملفين في نفس المجلد:');
-        console.error('   • nupco-pharma.exe');
+        console.error('   • medtracker.exe');
         console.error('   • better_sqlite3.node');
         process.exit(1);
     }

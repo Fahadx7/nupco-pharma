@@ -1,15 +1,15 @@
 {
-  "name": "nupco-tracker",
+  "name": "medtracker",
   "version": "3.0.0",
-  "description": "بوت تليجرام لتتبع انتهاء صلاحية أدوية نوبكو — نسخة محلية Windows",
+  "description": "MedTracker — متتبع الأدوية، بوت تليجرام لتتبع صلاحية الأدوية",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js",
-    "build": "pkg . --targets node18-win-x64 --output dist/nupco-pharma.exe",
-    "build:compress": "pkg . --targets node18-win-x64 --output dist/nupco-pharma.exe --compress GZip"
+    "build": "pkg . --targets node18-win-x64 --output dist/medtracker.exe",
+    "build:compress": "pkg . --targets node18-win-x64 --output dist/medtracker.exe --compress GZip"
   },
-  "keywords": ["telegram", "bot", "nupco", "pharmacy", "expiry"],
+  "keywords": ["telegram", "bot", "medtracker", "pharmacy", "expiry", "medication"],
   "author": "Fahad",
   "license": "ISC",
   "pkg": {
