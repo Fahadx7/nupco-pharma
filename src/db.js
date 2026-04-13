@@ -1,13 +1,34 @@
 'use strict';
-const Database = require('better-sqlite3');
-const path     = require('path');
+const path = require('path');
+
+// ── pkg compat: عند تشغيله كـ exe يجب أن يكون better_sqlite3.node بجانبه ─────
+if (process.pkg) {
+    const bindingPath = path.join(path.dirname(process.execPath), 'better_sqlite3.node');
+    const fs = require('fs');
+    if (!fs.existsSync(bindingPath)) {
+        console.error('❌ الملف better_sqlite3.node غير موجود بجانب البرنامج.');
+        console.error('   تأكد أن كلا الملفين في نفس المجلد:');
+        console.error('   • nupco-pharma.exe');
+        console.error('   • better_sqlite3.node');
+        process.exit(1);
+    }
+    // توجيه bindings للمسار الصحيح
+    process.env.BETTER_SQLITE3_BINDING = bindingPath;
+}
+
+let Database;
+try {
+    Database = require('better-sqlite3');
+} catch (err) {
+    console.error('❌ فشل تحميل محرك قاعدة البيانات:', err.message);
+    process.exit(1);
+}
 
 // مسار قاعدة البيانات — بجانب ملف الإعدادات
 const dbPath = path.join(process.cwd(), 'pharmacy.db');
-
 const db = new Database(dbPath);
 
-// تحسين الأداء
+// تحسين الأداء والموثوقية
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
@@ -30,14 +51,12 @@ db.exec(`
 `);
 
 /**
- * Tagged template متوافق مع واجهة Neon — يعمل مع جميع الأوامر الحالية بدون تعديل
+ * Tagged template متوافق مع واجهة Neon — يعمل بدون تعديل على جميع الأوامر
  *
- * مثال:
  *   const rows = await sql`SELECT * FROM nupco_inventory WHERE status = ${'active'}`;
  *   await sql`INSERT INTO nupco_inventory (name) VALUES (${'بانادول'})`;
  */
 function sql(strings, ...values) {
-    // بناء الـ query باستبدال ${value} بـ ?
     let query = '';
     strings.forEach((str, i) => {
         query += str;
@@ -55,5 +74,8 @@ function sql(strings, ...values) {
         return Promise.reject(err);
     }
 }
+
+// تصدير db أيضاً (للإحصائيات المباشرة في status.js)
+sql.db = db;
 
 module.exports = sql;

@@ -24,8 +24,8 @@ async function main() {
 
     // ── تحميل البوت والأوامر ──────────────────────────────────────────────────
     const TelegramBot = require('node-telegram-bot-api');
-    const Database    = require('better-sqlite3');
-    const path        = require('path');
+    const sql         = require('./src/db'); // يُنشئ قاعدة البيانات ويُصدّر db
+    const db          = sql.db;
 
     const { addMedication }   = require('./src/commands/add');
     const { checkExpiry }     = require('./src/commands/check');

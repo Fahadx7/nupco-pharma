@@ -1,7 +1,7 @@
 'use strict';
 const express  = require('express');
 const http     = require('http');
-const { loadConfig, saveConfig, CONFIG_PATH } = require('./setup');
+const { CONFIG_PATH } = require('./setup');
 const { enableAutoStart, disableAutoStart, isAutoStartEnabled } = require('./autostart');
 
 let _startTime = Date.now();
