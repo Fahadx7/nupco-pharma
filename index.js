@@ -1,6 +1,8 @@
 'use strict';
 
 const { loadConfig, isConfigComplete, startSetupWizard } = require('./src/setup');
+const { startStatusServer }     = require('./src/status');
+const { showStartupNotification } = require('./src/autostart');
 
 async function main() {
     // ── تحميل الإعدادات من config.json ───────────────────────────────────────
@@ -10,7 +12,7 @@ async function main() {
     if (!isConfigComplete(config)) {
         console.log('🆕 أول تشغيل — سيفتح المتصفح لإعداد البوت...');
         config = await startSetupWizard();
-        console.log('\n✅ تم الإعداد بنجاح. جاري تشغيل البوت...\n');
+        console.log('\n✅ تم الإعداد. جاري تشغيل البوت...\n');
     }
 
     // ── نقل الإعدادات إلى process.env ────────────────────────────────────────
@@ -22,6 +24,8 @@ async function main() {
 
     // ── تحميل البوت والأوامر ──────────────────────────────────────────────────
     const TelegramBot = require('node-telegram-bot-api');
+    const Database    = require('better-sqlite3');
+    const path        = require('path');
 
     const { addMedication }   = require('./src/commands/add');
     const { checkExpiry }     = require('./src/commands/check');
@@ -31,6 +35,9 @@ async function main() {
         handleConfirmation, handlePdf,
     } = require('./src/commands/scan');
     const { startDailyScheduler, buildDailyReport } = require('./src/scheduler');
+
+    // ── قاعدة البيانات (لإحصائيات لوحة التحكم) ───────────────────────────────
+    const db = new Database(path.join(process.cwd(), 'pharmacy.db'));
 
     // ── تهيئة البوت ───────────────────────────────────────────────────────────
     const bot = new TelegramBot(config.BOT_TOKEN, { polling: true });
@@ -116,7 +123,7 @@ async function main() {
     });
 
     // ════════════════════════════════════════════════════════════════════════════
-    // الأخطاء
+    // أخطاء البوت
     // ════════════════════════════════════════════════════════════════════════════
     bot.on('polling_error', (err) => console.error('❌ Polling error:', err.code || err.message));
     bot.on('error',         (err) => console.error('❌ Bot error:',     err.message));
@@ -126,8 +133,24 @@ async function main() {
     // ════════════════════════════════════════════════════════════════════════════
     startDailyScheduler(bot, config.MY_CHAT_ID);
 
-    console.log(`🚀 بوت ${PHARMACY_NAME} يعمل الآن...`);
-    console.log(`📊 التقرير اليومي يُرسَل إلى: ${config.MY_CHAT_ID}`);
+    // ════════════════════════════════════════════════════════════════════════════
+    // لوحة التحكم + إشعار Windows
+    // ════════════════════════════════════════════════════════════════════════════
+    startStatusServer(PHARMACY_NAME, db);
+    showStartupNotification(PHARMACY_NAME);
+
+    // ── فتح المتصفح تلقائياً على لوحة التحكم ─────────────────────────────────
+    const { exec } = require('child_process');
+    exec('start http://localhost:3000', () => {});
+
+    console.log('');
+    console.log('═══════════════════════════════════════════════');
+    console.log(`  💊 ${PHARMACY_NAME} — البوت يعمل`);
+    console.log('═══════════════════════════════════════════════');
+    console.log(`  📊 لوحة التحكم : http://localhost:3000`);
+    console.log(`  📬 Chat ID     : ${config.MY_CHAT_ID}`);
+    console.log('  ⏹  للإيقاف    : Ctrl+C أو من لوحة التحكم');
+    console.log('═══════════════════════════════════════════════');
 }
 
 main().catch(err => {
