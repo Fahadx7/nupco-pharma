@@ -1,5 +1,6 @@
 'use strict';
 
+const path = require('path'); // أضفنا هذا السطر لأنه كان ناقصاً ويسبب خطأ
 const { loadConfig, isConfigComplete, startSetupWizard } = require('./src/setup');
 const { startStatusServer }     = require('./src/status');
 const { showStartupNotification } = require('./src/autostart');
@@ -16,16 +17,18 @@ async function main() {
     }
 
     // ── نقل الإعدادات إلى process.env ────────────────────────────────────────
-    process.env.BOT_TOKEN    = config.BOT_TOKEN;
-    process.env.MY_CHAT_ID   = config.MY_CHAT_ID;
+    process.env.BOT_TOKEN     = config.BOT_TOKEN;
+    process.env.MY_CHAT_ID    = config.MY_CHAT_ID;
     process.env.GROQ_API_KEY = config.GROQ_API_KEY;
 
     const PHARMACY_NAME = config.PHARMACY_NAME || 'صيدليتي';
 
     // ── تحميل البوت والأوامر ──────────────────────────────────────────────────
     const TelegramBot = require('node-telegram-bot-api');
-    const sql         = require('./src/db'); // يُنشئ قاعدة البيانات ويُصدّر db
-    const db          = sql.db;
+    
+    // --- تعديل هنا: دمج تعريف قاعدة البيانات ومنع التكرار ---
+    const sql = require('./src/db'); 
+    const db  = sql.db; // هذا هو التعريف الوحيد الذي نحتاجه
 
     const { addMedication }   = require('./src/commands/add');
     const { checkExpiry }     = require('./src/commands/check');
@@ -35,9 +38,6 @@ async function main() {
         handleConfirmation, handlePdf,
     } = require('./src/commands/scan');
     const { startDailyScheduler, buildDailyReport } = require('./src/scheduler');
-
-    // ── قاعدة البيانات (لإحصائيات لوحة التحكم) ───────────────────────────────
-    const db = new Database(path.join(process.cwd(), 'pharmacy.db'));
 
     // ── تهيئة البوت ───────────────────────────────────────────────────────────
     const bot = new TelegramBot(config.BOT_TOKEN, { polling: true });
@@ -71,9 +71,6 @@ async function main() {
         );
     });
 
-    // ════════════════════════════════════════════════════════════════════════════
-    // الأوامر الأخرى
-    // ════════════════════════════════════════════════════════════════════════════
     bot.onText(/^\/scan$/,  (msg) => handleScanMenu(bot, msg));
     bot.onText(/^\/add/,    (msg) => addMedication(bot, msg));
     bot.onText(/^\/list$/,  (msg) => listMedications(bot, msg.chat.id));
@@ -96,9 +93,6 @@ async function main() {
         }
     });
 
-    // ════════════════════════════════════════════════════════════════════════════
-    // الصور والمستندات
-    // ════════════════════════════════════════════════════════════════════════════
     bot.on('photo', (msg) => handlePhoto(bot, msg));
 
     bot.on('document', async (msg) => {
@@ -110,9 +104,6 @@ async function main() {
         }
     });
 
-    // ════════════════════════════════════════════════════════════════════════════
-    // أزرار التأكيد
-    // ════════════════════════════════════════════════════════════════════════════
     bot.on('callback_query', async (query) => {
         const cb = query.data || '';
         if (cb.startsWith('scan_')) {
@@ -122,24 +113,14 @@ async function main() {
         }
     });
 
-    // ════════════════════════════════════════════════════════════════════════════
-    // أخطاء البوت
-    // ════════════════════════════════════════════════════════════════════════════
     bot.on('polling_error', (err) => console.error('❌ Polling error:', err.code || err.message));
     bot.on('error',         (err) => console.error('❌ Bot error:',     err.message));
 
-    // ════════════════════════════════════════════════════════════════════════════
-    // الجدولة اليومية
-    // ════════════════════════════════════════════════════════════════════════════
     startDailyScheduler(bot, config.MY_CHAT_ID);
 
-    // ════════════════════════════════════════════════════════════════════════════
-    // لوحة التحكم + إشعار Windows
-    // ════════════════════════════════════════════════════════════════════════════
     startStatusServer(PHARMACY_NAME, db);
     showStartupNotification(PHARMACY_NAME);
 
-    // ── فتح المتصفح تلقائياً على لوحة التحكم ─────────────────────────────────
     const { exec } = require('child_process');
     exec('start http://localhost:3000', () => {});
 
@@ -149,7 +130,7 @@ async function main() {
     console.log('═══════════════════════════════════════════════');
     console.log(`  📊 لوحة التحكم : http://localhost:3000`);
     console.log(`  📬 Chat ID     : ${config.MY_CHAT_ID}`);
-    console.log('  ⏹  للإيقاف    : Ctrl+C أو من لوحة التحكم');
+    console.log('  ⏹  للإيقاف     : Ctrl+C أو من لوحة التحكم');
     console.log('═══════════════════════════════════════════════');
 }
 
