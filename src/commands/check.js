@@ -7,7 +7,7 @@ function buildTargetDate(frame) {
     if (frame === 'day')   date.setDate(date.getDate() + 1);
     if (frame === 'week')  date.setDate(date.getDate() + 7);
     if (frame === 'month') date.setMonth(date.getMonth() + 1);
-    return date;
+    return date.toISOString().split('T')[0];
 }
 
 /** @param {'day'|'week'|'month'} frame */

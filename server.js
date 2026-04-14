@@ -19,11 +19,11 @@ async function runMigrations() {
         () => sql`CREATE INDEX IF NOT EXISTS idx_category ON nupco_inventory (category)`,
         // v3
         () => sql`CREATE TABLE IF NOT EXISTS users (
-            id         SERIAL PRIMARY KEY,
+            id         INTEGER PRIMARY KEY AUTOINCREMENT,
             username   TEXT UNIQUE NOT NULL,
             password   TEXT NOT NULL,
             name       TEXT NOT NULL,
-            created_at TIMESTAMPTZ DEFAULT NOW()
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`,
         () => sql`ALTER TABLE nupco_inventory ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id)`,
         () => sql`CREATE INDEX IF NOT EXISTS idx_user_id ON nupco_inventory (user_id)`,

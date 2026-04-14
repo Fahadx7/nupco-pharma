@@ -10,11 +10,12 @@ async function buildDailyReport() {
     const today    = new Date();
     const in30days = new Date();
     in30days.setDate(today.getDate() + 30);
+    const in30str  = in30days.toISOString().split('T')[0];
 
     const rows = await sql`
         SELECT name, batch, expiry_date, quantity, category
         FROM nupco_inventory
-        WHERE expiry_date <= ${in30days}
+        WHERE expiry_date <= ${in30str}
           AND status = 'active'
         ORDER BY expiry_date ASC
     `;

@@ -19,10 +19,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: إعداد Node.js 18
+      - name: إعداد Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
 
       - name: تثبيت المكتبات
         shell: pwsh
@@ -36,7 +36,7 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          pkg . --targets node18-win-x64 --output dist/medtracker.exe
+          pkg . --targets node20-win-x64 --output dist/medtracker.exe
           if ($LASTEXITCODE -ne 0) { exit 1 }
           Write-Host "✅ medtracker.exe جاهز"
 

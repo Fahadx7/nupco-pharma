@@ -29,8 +29,7 @@ async function addMedication(bot, msg) {
         return;
     }
 
-    const expiryDate = new Date(expiryStr);
-    if (isNaN(expiryDate.getTime())) {
+    if (isNaN(new Date(expiryStr).getTime())) {
         await bot.sendMessage(chatId, '❌ التاريخ غير صالح.');
         return;
     }
@@ -38,10 +37,10 @@ async function addMedication(bot, msg) {
     try {
         await sql`
             INSERT INTO nupco_inventory (name, batch, expiry_date, quantity, added_by)
-            VALUES (${name}, ${batch}, ${expiryDate}, ${quantity}, ${chatId})
+            VALUES (${name}, ${batch}, ${expiryStr}, ${quantity}, ${chatId})
         `;
 
-        const exp = expiryDate.toLocaleDateString('en-GB');
+        const exp = new Date(expiryStr).toLocaleDateString('en-GB');
         await bot.sendMessage(
             chatId,
             `✅ تم إضافة الدواء بنجاح!\n\n💊 *${name}*\n📦 Batch: ${batch}\n📊 الكمية: ${quantity}\n📅 Exp: ${exp}`,
