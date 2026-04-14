@@ -73,7 +73,7 @@ async function testDbCleanup(sql) {
 // ── اختبار 5: التحقق من متغيرات البيئة ───────────────────────────────────
 function testEnvVars() {
     console.log('\n📋 اختبار 5: Environment Variables');
-    const vars = ['BOT_TOKEN', 'MY_CHAT_ID', 'DATABASE_URL', 'GROQ_API_KEY'];
+    const vars = ['BOT_TOKEN', 'MY_CHAT_ID', 'GROQ_API_KEY'];
     let allOk = true;
     vars.forEach(v => {
         if (process.env[v] && !process.env[v].includes('ضع_هنا')) {

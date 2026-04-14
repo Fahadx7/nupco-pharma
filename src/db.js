@@ -64,8 +64,8 @@ function sql(strings, ...values) {
     });
 
     try {
-        const trimmed = query.trim().toUpperCase();
-        if (trimmed.startsWith('SELECT')) {
+        const upper = query.trim().toUpperCase();
+        if (upper.startsWith('SELECT') || upper.includes('RETURNING')) {
             return Promise.resolve(db.prepare(query).all(...values));
         } else {
             return Promise.resolve(db.prepare(query).run(...values));
