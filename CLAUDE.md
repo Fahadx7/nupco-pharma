@@ -1,178 +1,102 @@
-# CLAUDE.md — MedTracker (نوبكو فارما)
+# CLAUDE.md
 
-## Think Before Coding
-
-Before touching any file, answer these questions:
-1. **What is the actual problem?** Re-read the request. Don't assume.
-2. **Where does the problem live?** Trace the flow: Telegram message → `index.js` → `commands/` → `src/db.js` → SQLite.
-3. **What is the minimal change?** One function, one file if possible.
-4. **What breaks if I change this?** Check callers before editing a shared utility.
-
-The two runtimes are separate — the Telegram bot (`index.js`) and the web server (`server.js`) run side-by-side. A change in `src/db.js` affects both. A change in `src/commands/scan.js` affects only the bot.
-
----
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Identity
 
-**MedTracker** — free medication inventory tracker for Saudi pharmacies.
-- Version: `3.4.0`
-- Platform: Windows desktop app (Node.js bundled via `pkg` → `.exe`)
-- Interface: Telegram bot + local web dashboard (`localhost:3000`)
-- Language: JavaScript (Node.js 18+), Arabic UI/messages
+**نوبكو فارما** — multi-tenant pharmacy management desktop app for Saudi pharmacies.
+- Version: `4.0.0` | Platform: Windows (Electron 33 + React 18 + TypeScript)
+- Interface: Dark-mode Arabic RTL | Build: electron-vite → electron-builder → NSIS installer
 
 ---
 
-## Architecture at a Glance
+## Commands
+
+```bash
+npm run dev           # Electron dev mode (hot-reload)
+npm run build         # electron-vite build only → out/
+npm run package:win   # Full build + NSIS installer → release/
+npm run bot           # Legacy Telegram bot (separate process, not the Electron app)
+```
+
+No test runner is configured. TypeScript check: `npx tsc --noEmit`.
+
+---
+
+## Architecture
 
 ```
-index.js            ← Bot entry point. Loads config, starts polling, routes commands.
-server.js           ← Web server entry point. Runs Express on port 3000.
-
 src/
-  db.js             ← SQLite wrapper. Exposes sql`` tagged-template API.
-  setup.js          ← First-run HTML wizard. Writes config.json.
-  status.js         ← Dashboard routes + stats API for the web UI.
-  scheduler.js      ← Cron job: daily 9 AM report (6 UTC).
-  autostart.js      ← Windows startup via VBScript.
-
-  commands/         ← One file per Telegram command.
-    add.js          ← /add — manual entry
-    scan.js         ← /scan — AI OCR pipeline (441 lines, most complex)
-    list.js         ← /list — grouped inventory display
-    check.js        ← /check — expiry alerts
-
-  api/
-    routes.js       ← All REST endpoints (stats, medications, upload)
-    auth.js         ← JWT register/login
-    middleware.js   ← Token verification
-
-  utils/
-    categorize.js   ← Regex-based medicine classification (12 categories)
-    scanSession.js  ← Multi-step scan state machine per user
-
-public/
-  index.html        ← Single-page web app (46 KB, self-contained)
-  sw.js             ← Service worker (PWA offline)
-
-sql/
-  schema.sql        ← Base table: nupco_inventory + indexes
-  migrate_v2.sql    ← Added: category, source
-  migrate_v3.sql    ← Added: users table
+  main/index.ts       ← ONLY backend: DB init, all IPC handlers, Telegram bot, window
+  preload/index.ts    ← contextBridge: exposes window.api (typed) to renderer
+  renderer/index.html ← Vite entry (script src="../main.tsx" — note the ../ path)
+  main.tsx            ← React root
+  App.tsx             ← HashRouter + RequireAuth guard + 11 routes
+  lib/ipc.ts          ← window.api TypeScript types (source of truth for IPC contract)
+  stores/auth.ts      ← Zustand persist store (pharmacyId, token, user)
+  pages/              ← 11 pages (Dashboard, Inventory, Prescriptions, Customers,
+                         Suppliers, Expenses, Staff, Notifications, TelegramSettings,
+                         SystemSettings, Support)
+sql/schema.sql        ← SQLite schema (15 tables, idempotent CREATE IF NOT EXISTS)
 ```
+
+### Data Flow
+
+```
+React page → api.method(payload)       [camelCase]
+  → ipcRenderer.invoke('channel:name')
+  → ipcMain.handle('channel:name')
+  → better-sqlite3 synchronous query   [snake_case columns]
+  → return value back to renderer
+```
+
+IPC payload convention: **renderer sends camelCase flat objects**; `src/main/index.ts` maps to snake_case for SQL. Never send nested objects over IPC.
+
+### Multi-Tenancy
+
+Every table has `pharmacy_id FK`. Every query must filter by `pharmacyId` (from Zustand auth store, originally from JWT). The auth flow: `auth:login` → JWT signed with `JWT_SECRET` → stored in Zustand persist → verified on app reopen via `auth:verify`.
+
+### First-Run Wizard
+
+`setup:check` → if no pharmacy → `SetupWizard.tsx` (4 steps: pharmacy info → Telegram → admin account → done). The wizard calls `setup:create-pharmacy`, `setup:save-telegram`, `setup:create-admin`, sets `pharmacies.setup_done = 1`.
 
 ---
 
-## Core Data Flow
+## Critical: Native Module Bundling
 
-### Telegram Scan Flow
-```
-User sends photo/PDF
-  → index.js routes to commands/scan.js
-  → scanSession.js tracks multi-step state
-  → Groq Vision API (Llama 4 Scout) → JSON
-  → categorize.js assigns category
-  → db.js inserts into nupco_inventory
-  → Bot replies with Arabic confirmation
-```
+**`better-sqlite3` must never be bundled by Rollup.** The `.node` binary cannot run inside an asar archive or inside a bundled JS file.
 
-### Web Upload Flow
+`vite.config.ts` uses a function-based `external` that externalizes ALL non-relative imports for the main process. **Do not remove this.** If you see the error:
 ```
-Browser POST /api/upload/pdf
-  → api/routes.js parses PDF (pdf-parse)
-  → Groq Vision API → JSON preview
-  → Browser shows preview
-  → POST /api/upload/confirm → db.js saves
+Could not dynamically require "...build\better_sqlite3.node"
+at commonjsRequire ... at bindings2
 ```
+→ `better-sqlite3` is being bundled. The fix is in `vite.config.ts` `rollupOptions.external`.
 
-### Database Abstraction
-```javascript
-// Always use the tagged template — never raw SQL strings
-const rows = await sql`SELECT * FROM nupco_inventory WHERE status = ${'active'}`;
-// This is in src/db.js — it wraps better-sqlite3 with Neon-style API
-```
+`package.json` build config uses `"asar": false` so all `node_modules` are installed as plain files — the `.node` binary loads from `resources/app/node_modules/better-sqlite3/build/Release/`.
+
+CI (`electron-rebuild`) rebuilds `better-sqlite3` for Electron's Node ABI before packaging.
 
 ---
 
-## Simplicity First
+## Adding Features
 
-**Rules:**
-- Do not add TypeScript, ORMs, or new dependencies without a clear reason.
-- Do not create new files if you can add to an existing one.
-- Do not abstract until you have 3+ real duplicates.
-- The project is intentionally local-only — do not introduce cloud calls beyond the existing Groq API.
+### New page
+1. `src/pages/NewPage.tsx`
+2. IPC handlers → `src/main/index.ts`
+3. `contextBridge` exposure → `src/preload/index.ts`
+4. Type declaration → `src/lib/ipc.ts`
+5. Route → `src/App.tsx`
+6. Nav link → `src/components/layout/Sidebar.tsx`
 
-**The database is synchronous** (`better-sqlite3`). The `sql` wrapper returns a Promise for API compatibility, but underneath it's sync. Don't add async complexity where it isn't needed.
+### New IPC handler
+1. `ipcMain.handle('ns:action', handler)` in `src/main/index.ts`
+2. `nsAction: (d) => ipcRenderer.invoke('ns:action', d)` in `src/preload/index.ts`
+3. Type in `src/lib/ipc.ts`
 
-**The web UI is a single HTML file** (`public/index.html`). Keep it that way unless there's a strong reason. No build step, no bundler for the frontend.
-
----
-
-## Surgical Changes
-
-### Adding a new Telegram command
-1. Create `src/commands/newcmd.js` — export one async function `(bot, msg, match) => {}`
-2. Register in `index.js` with `bot.onText(/\/newcmd/, handler)`
-3. Add to the `/start` help text in `index.js`
-4. No other files need to change.
-
-### Adding a new API endpoint
-1. Add the route to `src/api/routes.js`
-2. If it needs auth, use `authenticateToken` from `src/api/middleware.js`
-3. No other files need to change.
-
-### Adding a new medication category
-1. Edit `src/utils/categorize.js` only — add a regex pattern to the `CATEGORIES` array.
-2. No other files need to change.
-
-### Database schema change
-1. Write a migration SQL file: `sql/migrate_v4.sql`
-2. Add the migration to the startup sequence in `server.js` (see existing migration pattern)
-3. Update `sql/schema.sql` to reflect the new baseline
-4. Do not modify existing migration files.
-
----
-
-## Goal-Driven Execution
-
-When given a task:
-1. **Identify the single file** most responsible for the behavior.
-2. **Read that file** before writing anything.
-3. **Make the change** — no cleanup, no refactoring unless asked.
-4. **Test the path** mentally: does the bot flow still reach the DB? Does the web route still authenticate?
-
-Do not:
-- Rename variables for style
-- Add comments to code you didn't change
-- Add error handling for impossible paths
-- Refactor scan.js because it's long — it's long for a reason
-
----
-
-## Tech Stack Quick Reference
-
-| Need | Tool |
-|------|------|
-| Database query | `sql\`...\`` from `src/db.js` |
-| Send Telegram message | `bot.sendMessage(chatId, text, opts)` |
-| User scan state | `getScanSession(userId)` / `setScanSession()` |
-| Categorize a drug name | `categorizeMedication(name)` from `src/utils/categorize.js` |
-| Authenticate web request | `authenticateToken` middleware |
-| Schedule a job | `node-cron` (see `src/scheduler.js`) |
-| AI / OCR | Groq SDK, model `meta-llama/llama-4-scout-17b-16e-instruct` |
-| Build exe | `npm run build` → `pkg .` → `dist/medtracker.exe` |
-| Dev mode | `npm run dev` (node --watch) |
-
----
-
-## Conventions
-
-- **`'use strict'`** at top of every JS file.
-- **Dates** stored as `YYYY-MM-DD` (ISO). Convert before inserting. Never store Arabic date strings.
-- **Arabic messages** to users — keep them in Arabic. Don't translate to English.
-- **Emojis** in bot messages — part of the UX. Keep them.
-- **SQL** — always parameterized via the template literal. Never concatenate user input into SQL.
-- **Secrets** — never commit `config.json`, `pharmacy.db`, or `.env`. They are in `.gitignore`.
-- **JWT secret** — `nupco-secret-change-in-prod` is the dev default. In production, set `JWT_SECRET` env var.
+### Schema change
+1. Add to `sql/schema.sql` (idempotent: `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE`)
+2. Mirror in the inline fallback schema inside `initDb()` in `src/main/index.ts`
 
 ---
 
@@ -180,25 +104,41 @@ Do not:
 
 | File | Why |
 |------|-----|
-| `src/db.js` | Everything reads/writes through this |
-| `src/utils/categorize.js` | Determines data quality for every entry |
-| `src/utils/scanSession.js` | Prevents race conditions in multi-step bot flows |
-| `sql/schema.sql` | Source of truth for table structure |
-| `.github/workflows/build.yml` | Automated Windows release pipeline |
+| `src/main/index.ts` | All IPC handlers + DB init + error dialogs + window |
+| `src/preload/index.ts` | contextBridge — break this = all API calls fail |
+| `src/lib/ipc.ts` | TypeScript contract for all `window.api` calls |
+| `src/stores/auth.ts` | Auth state; `pharmacyId` used in every page |
+| `sql/schema.sql` | Source of truth for DB structure |
+| `vite.config.ts` | `external` function must stay — removes native module crash |
+
+---
+
+## IPC Channels
+
+```
+auth:login / auth:verify / auth:logout
+setup:check / setup:create-pharmacy / setup:save-telegram / setup:test-telegram / setup:create-admin
+dashboard:stats
+inventory:list / inventory:add / inventory:update / inventory:delete
+prescriptions:list / prescriptions:add / prescriptions:update-status
+customers:list / customers:add / customers:update
+suppliers:list / suppliers:add / suppliers:delete
+expenses:list / expenses:add / expenses:summary
+staff:list / staff:add / staff:update
+notifications:list / notifications:read-all / notifications:unread-count
+telegram:get / telegram:save / telegram:test
+settings:get / settings:set / settings:get-pharmacy / settings:update-pharmacy / settings:change-password
+theme:toggle / theme:get
+shell:open-url
+```
 
 ---
 
 ## Environment
 
 ```bash
-# Required at runtime
-BOT_TOKEN=...           # Telegram bot token from @BotFather
-MY_CHAT_ID=...          # Your personal Telegram chat ID
-GROQ_API_KEY=...        # From console.groq.com
-
-# Optional overrides
-WEB_PORT=3000           # Default: 3000
-JWT_SECRET=...          # Default: nupco-secret-change-in-prod
+JWT_SECRET=...    # Default fallback: 'nupco-pharma-secret-v4'
 ```
 
-Config is persisted locally in `config.json` (created by setup wizard, never committed).
+DB stored at `app.getPath('userData')/pharmacy.db` — never committed.
+Staff records live in the `users` table (not a separate `staff` table).

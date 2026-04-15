@@ -9,6 +9,8 @@ pharmacy.db-wal
 
 # ملفات البناء
 dist/
+out/
+release/
 *.exe
 
 *.log
