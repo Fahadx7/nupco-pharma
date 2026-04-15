@@ -1,89 +1,120 @@
-# CLAUDE.md — نوبكو فارما v4
+# CLAUDE.md
 
-## Think Before Coding
-
-Before touching any file, answer these questions:
-1. **What is the actual problem?** Re-read the request. Don't assume.
-2. **Where does the problem live?** Trace the flow: Renderer → IPC → `src/main/index.ts` → SQLite.
-3. **What is the minimal change?** One function, one file if possible.
-4. **What breaks if I change this?** Check IPC callers before editing shared handlers.
-
----
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Identity
 
 **نوبكو فارما** — multi-tenant pharmacy management desktop app for Saudi pharmacies.
-- Version: `4.0.0`
-- Platform: Windows desktop app (Electron + React)
-- Interface: Dark-mode Arabic RTL dashboard
-- Build: electron-vite → electron-builder → NSIS installer
+- Version: `4.0.0` | Platform: Windows (Electron 33 + React 18 + TypeScript)
+- Interface: Dark-mode Arabic RTL | Build: electron-vite → electron-builder → NSIS installer
 
 ---
 
-## Architecture at a Glance
+## Commands
+
+```bash
+npm run dev           # Electron dev mode (hot-reload)
+npm run build         # electron-vite build only → out/
+npm run package:win   # Full build + NSIS installer → release/
+npm run bot           # Legacy Telegram bot (separate process, not the Electron app)
+```
+
+No test runner is configured. TypeScript check: `npx tsc --noEmit`.
+
+---
+
+## Architecture
 
 ```
 src/
-  main/
-    index.ts        ← Electron main process. DB init, IPC handlers, Telegram bot, window creation.
-  preload/
-    index.ts        ← contextBridge: exposes window.api to renderer (all IPC calls typed).
-  renderer/
-    index.html      ← Renderer entry point (references ../main.tsx).
-
-  main.tsx          ← React entry (ReactDOM.render)
-  App.tsx           ← HashRouter, RequireAuth guard, all 11 routes
-  index.css         ← Tailwind + custom CSS classes (.card, .btn-*, .input, .badge-*, etc.)
-
-  lib/
-    ipc.ts          ← TypeScript types for window.api + `export const api = window.api`
-
-  stores/
-    auth.ts         ← Zustand store (persist). User state, login/logout/rehydrate.
-
-  components/
-    auth/LoginPage.tsx
-    wizard/SetupWizard.tsx   ← 4-step first-run wizard
-    layout/AppLayout.tsx
-    layout/Sidebar.tsx
-
-  pages/
-    Dashboard.tsx       ← Stats cards + 7-day sales chart
-    Inventory.tsx       ← CRUD inventory with expiry badges
-    Prescriptions.tsx   ← Rx tracker (pending/dispensed/cancelled)
-    Customers.tsx       ← Patient records
-    Suppliers.tsx       ← Supplier management
-    Expenses.tsx        ← Expenses with bar chart by category
-    Staff.tsx           ← Staff/user account management
-    Notifications.tsx   ← Notification center
-    TelegramSettings.tsx← Bot token + chat ID + test
-    SystemSettings.tsx  ← Pharmacy info, password change, theme toggle
-    Support.tsx         ← FAQ + Telegram support link (@AbuAmran2000_10)
-
-sql/
-  schema.sql          ← Full multi-tenant SQLite schema (15 tables)
-
-resources/
-  installer.nsh       ← NSIS installer customization
-
-bot/                  ← Legacy Telegram bot (v3.4) — separate runtime, not used by Electron app
+  main/index.ts       ← ONLY backend: DB init, all IPC handlers, Telegram bot, window
+  preload/index.ts    ← contextBridge: exposes window.api (typed) to renderer
+  renderer/index.html ← Vite entry (script src="../main.tsx" — note the ../ path)
+  main.tsx            ← React root
+  App.tsx             ← HashRouter + RequireAuth guard + 11 routes
+  lib/ipc.ts          ← window.api TypeScript types (source of truth for IPC contract)
+  stores/auth.ts      ← Zustand persist store (pharmacyId, token, user)
+  pages/              ← 11 pages (Dashboard, Inventory, Prescriptions, Customers,
+                         Suppliers, Expenses, Staff, Notifications, TelegramSettings,
+                         SystemSettings, Support)
+sql/schema.sql        ← SQLite schema (15 tables, idempotent CREATE IF NOT EXISTS)
 ```
+
+### Data Flow
+
+```
+React page → api.method(payload)       [camelCase]
+  → ipcRenderer.invoke('channel:name')
+  → ipcMain.handle('channel:name')
+  → better-sqlite3 synchronous query   [snake_case columns]
+  → return value back to renderer
+```
+
+IPC payload convention: **renderer sends camelCase flat objects**; `src/main/index.ts` maps to snake_case for SQL. Never send nested objects over IPC.
+
+### Multi-Tenancy
+
+Every table has `pharmacy_id FK`. Every query must filter by `pharmacyId` (from Zustand auth store, originally from JWT). The auth flow: `auth:login` → JWT signed with `JWT_SECRET` → stored in Zustand persist → verified on app reopen via `auth:verify`.
+
+### First-Run Wizard
+
+`setup:check` → if no pharmacy → `SetupWizard.tsx` (4 steps: pharmacy info → Telegram → admin account → done). The wizard calls `setup:create-pharmacy`, `setup:save-telegram`, `setup:create-admin`, sets `pharmacies.setup_done = 1`.
 
 ---
 
-## Core Data Flow
+## Critical: Native Module Bundling
 
-### Renderer → Backend
-```
-React component calls api.someMethod(data)
-  → window.api (contextBridge)
-  → ipcRenderer.invoke('channel:name', data)
-  → ipcMain.handle('channel:name', handler)
-  → better-sqlite3 (synchronous SQLite)
-  → Returns result to renderer
-```
+**`better-sqlite3` must never be bundled by Rollup.** The `.node` binary cannot run inside an asar archive or inside a bundled JS file.
 
-### IPC Channel Naming
+`vite.config.ts` uses a function-based `external` that externalizes ALL non-relative imports for the main process. **Do not remove this.** If you see the error:
+```
+Could not dynamically require "...build\better_sqlite3.node"
+at commonjsRequire ... at bindings2
+```
+→ `better-sqlite3` is being bundled. The fix is in `vite.config.ts` `rollupOptions.external`.
+
+`package.json` build config uses `"asar": false` so all `node_modules` are installed as plain files — the `.node` binary loads from `resources/app/node_modules/better-sqlite3/build/Release/`.
+
+CI (`electron-rebuild`) rebuilds `better-sqlite3` for Electron's Node ABI before packaging.
+
+---
+
+## Adding Features
+
+### New page
+1. `src/pages/NewPage.tsx`
+2. IPC handlers → `src/main/index.ts`
+3. `contextBridge` exposure → `src/preload/index.ts`
+4. Type declaration → `src/lib/ipc.ts`
+5. Route → `src/App.tsx`
+6. Nav link → `src/components/layout/Sidebar.tsx`
+
+### New IPC handler
+1. `ipcMain.handle('ns:action', handler)` in `src/main/index.ts`
+2. `nsAction: (d) => ipcRenderer.invoke('ns:action', d)` in `src/preload/index.ts`
+3. Type in `src/lib/ipc.ts`
+
+### Schema change
+1. Add to `sql/schema.sql` (idempotent: `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE`)
+2. Mirror in the inline fallback schema inside `initDb()` in `src/main/index.ts`
+
+---
+
+## Files to Never Break
+
+| File | Why |
+|------|-----|
+| `src/main/index.ts` | All IPC handlers + DB init + error dialogs + window |
+| `src/preload/index.ts` | contextBridge — break this = all API calls fail |
+| `src/lib/ipc.ts` | TypeScript contract for all `window.api` calls |
+| `src/stores/auth.ts` | Auth state; `pharmacyId` used in every page |
+| `sql/schema.sql` | Source of truth for DB structure |
+| `vite.config.ts` | `external` function must stay — removes native module crash |
+
+---
+
+## IPC Channels
+
 ```
 auth:login / auth:verify / auth:logout
 setup:check / setup:create-pharmacy / setup:save-telegram / setup:test-telegram / setup:create-admin
@@ -101,80 +132,13 @@ theme:toggle / theme:get
 shell:open-url
 ```
 
-### Multi-Tenancy
-All tables include `pharmacy_id` FK. Every query filters by `pharmacyId` passed from the authenticated user (stored in Zustand, originally from JWT).
-
----
-
-## Simplicity First
-
-**Rules:**
-- Do not add HTTP layer between Electron main and renderer — use IPC.
-- Do not add new npm packages without clear reason.
-- Do not abstract until you have 3+ real duplicates.
-- IPC payloads use camelCase from renderer; main.ts converts to snake_case for SQL.
-
----
-
-## Surgical Changes
-
-### Adding a new page
-1. Create `src/pages/NewPage.tsx`
-2. Add IPC handlers to `src/main/index.ts`
-3. Expose in `src/preload/index.ts` via `contextBridge`
-4. Add TypeScript type in `src/lib/ipc.ts`
-5. Add route in `src/App.tsx`
-6. Add nav link in `src/components/layout/Sidebar.tsx`
-
-### Adding a new IPC handler
-1. Add `ipcMain.handle('channel:name', handler)` to `src/main/index.ts`
-2. Add `channelName: (d) => ipcRenderer.invoke('channel:name', d)` to `src/preload/index.ts`
-3. Add type declaration in `src/lib/ipc.ts`
-
-### Database schema change
-1. Add migration SQL to `sql/schema.sql` (use `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE`)
-2. Also add inline in `src/main/index.ts` fallback schema for first-run
-
----
-
-## Tech Stack Quick Reference
-
-| Need | Tool |
-|------|------|
-| Database | `better-sqlite3` (sync) in `src/main/index.ts` |
-| Frontend state | Zustand (`src/stores/auth.ts`) |
-| Routing | React Router v6 HashRouter |
-| Styling | Tailwind CSS v3 + custom CSS classes in `src/index.css` |
-| Charts | Recharts (AreaChart, BarChart) |
-| IPC typing | `src/lib/ipc.ts` |
-| Telegram | `node-telegram-bot-api` + `node-cron` in main process |
-| Build | `npm run build` → electron-vite → `out/` |
-| Package Win | `npm run package:win` → NSIS installer in `release/` |
-
----
-
-## Files to Never Break
-
-| File | Why |
-|------|-----|
-| `src/main/index.ts` | All IPC handlers + DB init + Telegram + window creation |
-| `src/preload/index.ts` | Bridge between renderer and main |
-| `src/lib/ipc.ts` | TypeScript types for all API calls |
-| `src/stores/auth.ts` | Auth state used everywhere |
-| `sql/schema.sql` | Source of truth for table structure |
-
 ---
 
 ## Environment
 
 ```bash
-# Runtime (Electron main)
-JWT_SECRET=...           # Default: nupco-pharma-secret-v4
-
-# Bot (legacy, optional)
-BOT_TOKEN=...
-MY_CHAT_ID=...
-GROQ_API_KEY=...
+JWT_SECRET=...    # Default fallback: 'nupco-pharma-secret-v4'
 ```
 
-App data stored in `app.getPath('userData')` / `pharmacy.db` (never committed).
+DB stored at `app.getPath('userData')/pharmacy.db` — never committed.
+Staff records live in the `users` table (not a separate `staff` table).

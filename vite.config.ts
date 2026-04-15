@@ -7,13 +7,13 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()],
     build: {
       rollupOptions: {
-        // Force native modules to stay external — never bundle .node binaries
-        external: [
-          'better-sqlite3',
-          'bindings',
-          'file-uri-to-path',
-          /^better-sqlite3.*/,
-        ],
+        // Externalize ALL non-relative imports in the main process.
+        // This is critical: native .node binaries (better-sqlite3, bindings)
+        // cannot be processed by Rollup and must load from node_modules at runtime.
+        external: (id: string) => {
+          if (id.startsWith('.') || id.startsWith('/') || id.startsWith('\0')) return false
+          return true
+        },
       },
     },
   },
