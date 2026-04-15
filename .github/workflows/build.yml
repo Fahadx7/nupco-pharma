@@ -20,7 +20,7 @@ jobs:
       - name: Checkout (feature branch)
         uses: actions/checkout@v4
         with:
-          ref: claude/create-claude-md-cqwwl
+          ref: claude/find-solution-AWLPX
           fetch-depth: 0
 
       - name: إعداد Node.js 20
