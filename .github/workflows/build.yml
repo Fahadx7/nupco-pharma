@@ -1,4 +1,4 @@
-name: 🏗️ بناء وإصدار MedTracker
+name: 🏗️ بناء وإصدار نوبكو فارما v4
 
 on:
   push:
@@ -7,100 +7,101 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'رقم الإصدار'
+        description: 'رقم الإصدار (مثال: v4.0.0)'
         required: true
-        default: 'v3.0.2'
+        default: 'v4.0.0'
 
 jobs:
   build-windows:
-    name: بناء Windows x64
+    name: بناء Windows — NSIS Installer
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout (feature branch)
+        uses: actions/checkout@v4
+        with:
+          ref: claude/create-claude-md-cqwwl
+          fetch-depth: 0
 
       - name: إعداد Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
       - name: تثبيت المكتبات
-        shell: pwsh
         run: npm install --legacy-peer-deps
 
-      - name: تثبيت pkg
-        shell: pwsh
-        run: npm install -g pkg@5.8.1
+      - name: إعادة بناء better-sqlite3 لـ Electron
+        run: npx electron-rebuild -f -w better-sqlite3
+        env:
+          npm_config_msvs_version: '2022'
 
-      - name: بناء الـ exe
+      - name: بناء وتحزيم التطبيق
+        run: npm run package:win
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: البحث عن ملف الإعداد
+        id: find_installer
         shell: pwsh
         run: |
-          New-Item -ItemType Directory -Force -Path dist | Out-Null
-          pkg . --targets node20-win-x64 --output dist/medtracker.exe
-          if ($LASTEXITCODE -ne 0) { exit 1 }
-          Write-Host "✅ medtracker.exe جاهز"
-
-      - name: نسخ محرك SQLite
-        shell: pwsh
-        run: |
-          $src = "node_modules\better-sqlite3\prebuilds\win32-x64\node.napi.node"
-          $src2 = "node_modules\better-sqlite3\build\Release\better_sqlite3.node"
-          if (Test-Path $src) {
-            Copy-Item $src "dist\better_sqlite3.node"
-            Write-Host "✅ prebuilds"
-          } elseif (Test-Path $src2) {
-            Copy-Item $src2 "dist\better_sqlite3.node"
-            Write-Host "✅ build/Release"
-          } else {
-            Write-Host "⚠️ بحث في كل المجلدات..."
-            $found = Get-ChildItem -Path "node_modules\better-sqlite3" -Recurse -Filter "*.node" | Select-Object -First 1
-            if ($found) {
-              Copy-Item $found.FullName "dist\better_sqlite3.node"
-              Write-Host "✅ وُجد في $($found.FullName)"
-            } else {
-              Write-Error "❌ لم يُعثر على better_sqlite3.node"
-              exit 1
-            }
+          $f = Get-ChildItem -Path release -Recurse -Filter "*.exe" | Where-Object { $_.Name -notlike "*unpacked*" } | Select-Object -First 1
+          if (-not $f) {
+            $f = Get-ChildItem -Path release -Recurse -Filter "*.exe" | Select-Object -First 1
           }
-
-      - name: إنشاء تعليمات
-        shell: pwsh
-        run: |
-          $v = if ("${{ github.ref_name }}") { "${{ github.ref_name }}" } else { "${{ inputs.version }}" }
-          $c = "MedTracker $v`r`n=================`r`n`r`n1. الملفان يجب ان يكونا في نفس المجلد:`r`n   - medtracker.exe`r`n   - better_sqlite3.node`r`n`r`n2. شغل medtracker.exe`r`n`r`n3. افتح المتصفح على http://localhost:3000`r`n`r`nالدعم: github.com/fahadx7/nupco-pharma"
-          [IO.File]::WriteAllText("dist\README.txt", $c, [Text.Encoding]::UTF8)
-
-      - name: ضغط ZIP
-        shell: pwsh
-        run: |
-          $v = if ("${{ github.ref_name }}") { "${{ github.ref_name }}" } else { "${{ inputs.version }}" }
-          $z = "medtracker-$v-windows.zip"
-          Compress-Archive -Path dist\medtracker.exe, dist\better_sqlite3.node, dist\README.txt -DestinationPath "dist\$z" -Force
-          Add-Content $env:GITHUB_ENV "ZIP_NAME=$z"
+          echo "INSTALLER_PATH=$($f.FullName)" >> $env:GITHUB_ENV
+          echo "INSTALLER_NAME=$($f.Name)" >> $env:GITHUB_ENV
+          Write-Host "✅ وُجد: $($f.FullName)"
 
       - name: رفع artifact
         uses: actions/upload-artifact@v4
         with:
-          name: medtracker-windows
-          path: dist/*.zip
+          name: nupco-pharma-windows-installer
+          path: ${{ env.INSTALLER_PATH }}
+          retention-days: 30
 
-      - name: GitHub Release
-        if: startsWith(github.ref, 'refs/tags/')
+      - name: تحديد رقم الإصدار
+        id: version
+        shell: pwsh
+        run: |
+          if ("${{ github.ref_type }}" -eq "tag") {
+            echo "VER=${{ github.ref_name }}" >> $env:GITHUB_ENV
+          } else {
+            echo "VER=${{ inputs.version }}" >> $env:GITHUB_ENV
+          }
+
+      - name: إنشاء GitHub Release
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
-          name: "💊 MedTracker ${{ github.ref_name }}"
-          files: dist/${{ env.ZIP_NAME }}
+          tag_name: ${{ env.VER }}
+          name: "💊 نوبكو فارما ${{ env.VER }}"
+          files: ${{ env.INSTALLER_PATH }}
           body: |
-            ## 💊 MedTracker ${{ github.ref_name }}
-            > متتبع الأدوية — مجاني لجميع صيدليات المملكة
+            ## 💊 نوبكو فارما ${{ env.VER }}
+            > نظام إدارة الصيدليات المتعدد — لجميع صيدليات المملكة
+
+            ### ✨ المميزات:
+            - لوحة تحكم متكاملة (11 شاشة)
+            - إدارة المخزون مع تنبيهات انتهاء الصلاحية
+            - الوصفات الطبية والمرضى والموردين
+            - تقارير المصروفات والمبيعات
+            - ربط تيليجرام لإشعارات فورية
+            - واجهة عربية RTL داكنة
 
             ### 📥 التثبيت:
-            1. نزّل الملف من الأسفل وفك الضغط
-            2. شغّل `medtracker.exe` (الملفان يجب في نفس المجلد)
-            3. اتبع خطوات الإعداد في المتصفح
+            1. نزّل الملف `نوبكو-فارما-Setup.exe` من الأسفل
+            2. شغّل ملف الإعداد واتبع الخطوات
+            3. عند أول تشغيل: أدخل بيانات الصيدلية ثم حساب المدير
+            4. ابدأ الاستخدام 🚀
+
+            ### ⚠️ ملاحظة SmartScreen:
+            إذا ظهر تحذير Windows — اضغط **"معلومات إضافية" ← "تشغيل على أي حال"**
+            التطبيق آمن 100% — التحذير بسبب عدم توقيع الكود رقمياً.
 
             ---
-            صنع بـ ❤️ بواسطة [FHADAI](https://x.com/aboamran2011)
+            صنع بـ ❤️ بواسطة [فهد A](https://t.me/AbuAmran2000_10)
           draft: false
           prerelease: false
         env:
