@@ -56,19 +56,14 @@
     "directories": {
       "output": "release"
     },
-    "asar": true,
-    "asarUnpack": [
-      "**/node_modules/better-sqlite3/**",
-      "**/node_modules/bindings/**",
-      "**/node_modules/file-uri-to-path/**"
-    ],
+    "asar": false,
     "files": [
       "out/**/*",
       "resources/**/*",
       "sql/**/*",
-      "node_modules/better-sqlite3/**/*",
-      "node_modules/bindings/**/*",
-      "node_modules/file-uri-to-path/**/*"
+      "node_modules/**/*",
+      "!node_modules/.cache/**/*",
+      "!node_modules/.bin/**/*"
     ],
     "win": {
       "target": [

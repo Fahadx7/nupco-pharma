@@ -1,5 +1,5 @@
 'use strict'
-import { app, BrowserWindow, ipcMain, nativeTheme, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, nativeTheme, shell, dialog } from 'electron'
 import { join, dirname }  from 'path'
 import { fileURLToPath }  from 'url'
 import Database           from 'better-sqlite3'
@@ -392,9 +392,25 @@ function createWindow() {
     }
 }
 
+// ── Global error handlers ─────────────────────────────────────────────────────
+process.on('uncaughtException', (err) => {
+    dialog.showErrorBox('خطأ غير متوقع — نوبكو فارما', err.stack || err.message)
+    app.quit()
+})
+process.on('unhandledRejection', (reason: any) => {
+    dialog.showErrorBox('خطأ — نوبكو فارما', String(reason?.stack || reason))
+    app.quit()
+})
+
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 app.whenReady().then(() => {
-    initDb()
+    try {
+        initDb()
+    } catch (err: any) {
+        dialog.showErrorBox('فشل تهيئة قاعدة البيانات', err.stack || err.message)
+        app.quit()
+        return
+    }
     createWindow()
     app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
 })
