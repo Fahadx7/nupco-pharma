@@ -5,16 +5,20 @@ const { initDb, subscribeUser, unsubscribeUser } = require('./src/db');
 const { startScheduler } = require('./src/scheduler');
 const { fetchAndSummarize } = require('./src/summarizer');
 
-const BOT_TOKEN = process.env.BOT_TOKEN || '';
+const BOT_TOKEN = process.env.TELEGRAM_TOKEN || '';
 
 if (!BOT_TOKEN) {
-  console.error('BOT_TOKEN is required');
+  console.error('TELEGRAM_TOKEN is required');
   process.exit(1);
 }
 
 const bot = new TelegramBot(BOT_TOKEN, { polling: true });
 
 initDb();
+
+const OWNER_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+if (OWNER_CHAT_ID) subscribeUser(Number(OWNER_CHAT_ID));
+
 startScheduler(bot);
 
 bot.onText(/\/start/, (msg) => {

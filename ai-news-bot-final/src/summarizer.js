@@ -1,27 +1,33 @@
 'use strict';
 
-const Groq = require('groq-sdk');
+const Anthropic = require('@anthropic-ai/sdk');
 const { fetchNews } = require('./fetcher');
 const { isArticleSent, markArticleSent } = require('./db');
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
+const client = new Anthropic.default({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+const SYSTEM_PROMPT = 'أنت مساعد صيدلاني متخصص. مهمتك تلخيص الأخبار الدوائية والصيدلانية باللغة العربية بأسلوب مهني وموجز يفيد الصيادلة.';
 
 async function summarizeArticle(article) {
-  const prompt = `أنت مساعد صيدلاني متخصص. لخص الخبر التالي باللغة العربية في 3-4 جمل موجزة ومفيدة للصيادلة:
-
-العنوان: ${article.title}
-المحتوى: ${article.summary}
-الرابط: ${article.link}
-
-قدم الملخص بصيغة مباشرة ومهنية.`;
-
-  const response = await groq.chat.completions.create({
-    model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-    messages: [{ role: 'user', content: prompt }],
-    max_tokens: 300,
+  const response = await client.messages.create({
+    model: 'claude-opus-4-6',
+    max_tokens: 400,
+    system: [
+      {
+        type: 'text',
+        text: SYSTEM_PROMPT,
+        cache_control: { type: 'ephemeral' },
+      },
+    ],
+    messages: [
+      {
+        role: 'user',
+        content: `لخص الخبر التالي في 3-4 جمل موجزة:\n\nالعنوان: ${article.title}\nالمحتوى: ${article.summary}\n\nقدم الملخص بصيغة مباشرة.`,
+      },
+    ],
   });
 
-  return response.choices[0]?.message?.content || '';
+  return response.content[0]?.type === 'text' ? response.content[0].text : '';
 }
 
 async function fetchAndSummarize() {
