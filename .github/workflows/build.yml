@@ -33,23 +33,33 @@ jobs:
         run: npm install --legacy-peer-deps
 
       - name: إعادة بناء better-sqlite3 لـ Electron
-        run: npx electron-rebuild -f -w better-sqlite3
-        env:
-          npm_config_msvs_version: '2022'
+        shell: pwsh
+        run: |
+          $electronVer = node -e "console.log(require('./node_modules/electron/package.json').version)"
+          Write-Host "Electron version: $electronVer"
+          npx electron-rebuild -f -w better-sqlite3 --electron-version $electronVer
+          Write-Host "✅ better-sqlite3 rebuilt"
+          # Verify the .node file exists
+          $nodeFile = Get-ChildItem -Path "node_modules\better-sqlite3" -Recurse -Filter "*.node" | Select-Object -First 1
+          if ($nodeFile) { Write-Host "✅ Found: $($nodeFile.FullName)" } else { Write-Error "❌ .node file not found!" }
 
       - name: بناء وتحزيم التطبيق
         run: npm run package:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEBUG: electron-builder
 
       - name: البحث عن ملف الإعداد
         id: find_installer
         shell: pwsh
         run: |
+          Write-Host "=== release directory contents ==="
+          Get-ChildItem -Path release -Recurse | Select-Object FullName, Length | Format-Table
           $f = Get-ChildItem -Path release -Recurse -Filter "*.exe" | Where-Object { $_.Name -notlike "*unpacked*" } | Select-Object -First 1
           if (-not $f) {
             $f = Get-ChildItem -Path release -Recurse -Filter "*.exe" | Select-Object -First 1
           }
+          if (-not $f) { Write-Error "❌ No exe found in release/"; exit 1 }
           echo "INSTALLER_PATH=$($f.FullName)" >> $env:GITHUB_ENV
           echo "INSTALLER_NAME=$($f.Name)" >> $env:GITHUB_ENV
           Write-Host "✅ وُجد: $($f.FullName)"
@@ -98,7 +108,6 @@ jobs:
 
             ### ⚠️ ملاحظة SmartScreen:
             إذا ظهر تحذير Windows — اضغط **"معلومات إضافية" ← "تشغيل على أي حال"**
-            التطبيق آمن 100% — التحذير بسبب عدم توقيع الكود رقمياً.
 
             ---
             صنع بـ ❤️ بواسطة [فهد A](https://t.me/AbuAmran2000_10)
