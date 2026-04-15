@@ -1,0 +1,17 @@
+{
+  "name": "ai-news-bot",
+  "version": "1.0.0",
+  "description": "AI-powered pharmaceutical news bot for Telegram",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.4.3",
+    "groq-sdk": "^0.3.3",
+    "node-cron": "^3.0.3",
+    "node-telegram-bot-api": "^0.64.0",
+    "rss-parser": "^3.13.0"
+  }
+}
