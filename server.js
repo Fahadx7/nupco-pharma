@@ -38,10 +38,16 @@ async function runMigrations() {
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// ✅ إضافة مسار رفع PDF (استجابة آمنة تمنع الخطأ)
+app.post('/api/upload-pdf', (req, res) => {
+    res.json({ success: false, message: '📎 لرفع الفاتورة، أرسل ملف PDF إلى بوت تلغرام مباشرة.' });
+});
+
 app.use('/api/auth', auth);
 app.use('/api', routes);
 
-// Fallback → SPA
+// Fallback → SPA (للطلبات GET فقط)
 app.get('/{*path}', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
