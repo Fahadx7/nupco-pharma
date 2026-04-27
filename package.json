@@ -1,0 +1,44 @@
+{
+  "name": "medtracker",
+  "version": "3.4.0",
+  "description": "MedTracker — متتبع الأدوية، بوت تليجرام لتتبع صلاحية الأدوية",
+  "main": "index.js",
+  "bin": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "build": "pkg . --targets node20-win-x64 --out-path dist"
+  },
+  "keywords": [
+    "telegram",
+    "bot",
+    "medtracker",
+    "pharmacy",
+    "expiry",
+    "medication"
+  ],
+  "author": "Fahad",
+  "license": "ISC",
+  "pkg": {
+    "assets": [
+      "node_modules/better-sqlite3/prebuilds/win32-x64/better_sqlite3.node"
+    ]
+  },
+  "dependencies": {
+    "@napi-rs/canvas": "^0.1.65",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^11.8.1",
+    "dotenv": "^16.4.5",
+    "express": "^5.2.1",
+    "groq-sdk": "^1.1.2",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "node-cron": "^3.0.3",
+    "node-telegram-bot-api": "^0.67.0",
+    "pdf-parse": "^1.1.4",
+    "pdfjs-dist": "^3.11.174"
+  },
+  "devDependencies": {
+    "pkg": "^5.8.1"
+  }
+}
