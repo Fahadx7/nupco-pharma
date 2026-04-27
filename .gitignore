@@ -1,4 +1,6 @@
-node_modules/
-config.json
-medtracker.db
+pharmacy.db-shm
+pharmacy.db-wal
+pharmacy.db
+*.db-shm
+*.db-wal
 *.db
