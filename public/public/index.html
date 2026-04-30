@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="theme-color" content="#0369a1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="نوبكو فارما">
+<link rel="manifest" href="/manifest.json">
+<title>نوبكو فارما — مخزون الأدوية</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --primary: #0369a1;
+    --primary-light: #0ea5e9;
+    --primary-bg: #e0f2fe;
+    --success: #16a34a;
+    --success-bg: #dcfce7;
+    --warning: #d97706;
+    --warning-bg: #fef3c7;
+    --danger: #dc2626;
+    --danger-bg: #fee2e2;
+    --bg: #f0f9ff;
+    --card: #ffffff;
+    --text: #0f172a;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --radius: 14px;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 4px 16px rgba(0,0,0,.06);
+    --nav-h: 64px;
+  }
+
+  body {
+    font-family: -apple-system, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    padding-bottom: calc(var(--nav-h) + 16px);
+  }
+
+  /* ── Header ── */
+  .header {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
+    color: #fff;
+    padding: 16px 20px 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 2px 12px rgba(3,105,161,.3);
+  }
+  .header-top { display: flex; align-items: center; gap: 10px; }
+  .header h1 { font-size: 1.2rem; font-weight: 700; }
+  .header-sub { font-size: .78rem; opacity: .85; margin-top: 2px; }
+  .header-logo { font-size: 1.6rem; }
+
+  /* ── Stats row ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    padding: 16px;
+  }
+  .stat-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 12px 10px;
+    text-align: center;
+    box-shadow: var(--shadow);
+    border-top: 3px solid transparent;
+    transition: transform .15s;
+  }
+  .stat-card:active { transform: scale(.97); }
+  .stat-card.total  { border-color: var(--primary); }
+  .stat-card.soon   { border-color: var(--warning); }
+  .stat-card.crit   { border-color: #f97316; }
+  .stat-card.exp    { border-color: var(--danger); }
+  .stat-num { font-size: 1.6rem; font-weight: 800; line-height: 1; }
+  .stat-num.blue   { color: var(--primary); }
+  .stat-num.orange { color: var(--warning); }
+  .stat-num.red2   { color: #f97316; }
+  .stat-num.red    { color: var(--danger); }
+  .stat-label { font-size: .65rem; color: var(--text-muted); margin-top: 4px; }
+
+  /* ── Tabs ── */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: var(--nav-h);
+    background: var(--card);
+    border-top: 1px solid var(--border);
+    display: flex;
+    z-index: 200;
+    box-shadow: 0 -4px 20px rgba(0,0,0,.08);
+  }
+  .nav-btn {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-size: .65rem;
+    font-weight: 600;
+    transition: color .15s;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .nav-btn .icon { font-size: 1.4rem; line-height: 1; }
+  .nav-btn.active { color: var(--primary); }
+  .nav-btn.active .icon { transform: scale(1.1); }
+
+  /* ── Tab sections ── */
+  .tab-section { display: none; padding: 0 16px; animation: fadeIn .2s ease; }
+  .tab-section.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  /* ── Section title ── */
+  .section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 4px 0 12px;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* ── Search & Filter ── */
+  .search-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .search-bar input, .search-bar select {
+    padding: 10px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: .9rem;
+    font-family: inherit;
+    background: var(--card);
+    color: var(--text);
+    outline: none;
+    transition: border-color .15s;
+  }
+  .search-bar input { flex: 1; min-width: 120px; }
+  .search-bar input:focus, .search-bar select:focus { border-color: var(--primary-light); }
+
+  /* ── Med Card ── */
+  .med-list { display: flex; flex-direction: column; gap: 10px; }
+  .med-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 14px;
+    box-shadow: var(--shadow);
+    border-right: 4px solid var(--border);
+    position: relative;
+    transition: transform .15s;
+  }
+  .med-card:active { transform: scale(.99); }
+  .med-card.ok       { border-color: var(--success); }
+  .med-card.soon     { border-color: var(--warning); }
+  .med-card.critical { border-color: #f97316; }
+  .med-card.expired  { border-color: var(--danger); opacity: .85; }
+
+  .med-name { font-weight: 700; font-size: .95rem; margin-bottom: 6px; }
+  .med-meta { display: flex; gap: 10px; flex-wrap: wrap; font-size: .78rem; color: var(--text-muted); }
+  .med-meta span { display: flex; align-items: center; gap: 3px; }
+  .med-badge {
+    display: inline-block;
+    padding: 2px 9px;
+    border-radius: 20px;
+    font-size: .7rem;
+    font-weight: 700;
+    margin-top: 8px;
+  }
+  .badge-ok       { background: var(--success-bg); color: var(--success); }
+  .badge-soon     { background: var(--warning-bg); color: var(--warning); }
+  .badge-critical { background: #ffedd5; color: #ea580c; }
+  .badge-expired  { background: var(--danger-bg); color: var(--danger); }
+  .badge-cat { background: var(--primary-bg); color: var(--primary); }
+
+  .med-del-btn {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: none;
+    border: none;
+    font-size: 1.1rem;
+    cursor: pointer;
+    opacity: .4;
+    transition: opacity .15s;
+    padding: 4px;
+    border-radius: 6px;
+  }
+  .med-del-btn:hover { opacity: 1; background: var(--danger-bg); }
+
+  /* ── Form ── */
+  .form-card {
+    background: var(--card);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+  .form-group { margin-bottom: 14px; }
+  .form-group label {
+    display: block;
+    font-size: .82rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 5px;
+  }
+  .form-group input {
+    width: 100%;
+    padding: 11px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: .95rem;
+    font-family: inherit;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    transition: border-color .15s;
+  }
+  .form-group input:focus { border-color: var(--primary-light); background: #fff; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px 22px;
+    border-radius: 10px;
+    font-size: .9rem;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    transition: all .15s;
+    width: 100%;
+  }
+  .btn-primary { background: var(--primary); color: #fff; }
+  .btn-primary:hover { background: #025487; }
+  .btn-primary:active { transform: scale(.98); }
+  .btn-success { background: var(--success); color: #fff; }
+  .btn-success:hover { background: #15803d; }
+  .btn-danger  { background: var(--danger); color: #fff; }
+  .btn-outline {
+    background: transparent;
+    border: 2px solid var(--primary);
+    color: var(--primary);
+  }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  /* ── PDF Upload Zone ── */
+  .drop-zone {
+    border: 2.5px dashed var(--primary-light);
+    border-radius: var(--radius);
+    padding: 36px 20px;
+    text-align: center;
+    background: var(--primary-bg);
+    cursor: pointer;
+    transition: all .2s;
+    margin-bottom: 16px;
+  }
+  .drop-zone.drag-over { border-color: var(--primary); background: #bae6fd; transform: scale(1.01); }
+  .drop-zone .dz-icon { font-size: 3rem; display: block; margin-bottom: 10px; }
+  .drop-zone .dz-text { font-weight: 700; color: var(--primary); font-size: .95rem; }
+  .drop-zone .dz-sub  { font-size: .78rem; color: var(--text-muted); margin-top: 4px; }
+
+  /* ── Preview Table ── */
+  .preview-table-wrap { overflow-x: auto; border-radius: 10px; box-shadow: var(--shadow); margin-bottom: 14px; }
+  .preview-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card);
+    font-size: .82rem;
+  }
+  .preview-table th {
+    background: var(--primary);
+    color: #fff;
+    padding: 10px 12px;
+    text-align: right;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+  .preview-table td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .preview-table tr:last-child td { border-bottom: none; }
+  .preview-table tr:hover td { background: var(--bg); }
+  .preview-table input {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1.5px solid var(--border);
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: .82rem;
+    background: transparent;
+    outline: none;
+  }
+  .preview-table input:focus { border-color: var(--primary-light); background: #fff; }
+
+  /* ── Empty state ── */
+  .empty {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-muted);
+  }
+  .empty .empty-icon { font-size: 3rem; display: block; margin-bottom: 10px; }
+
+  /* ── Loading ── */
+  .spinner {
+    display: inline-block;
+    width: 20px; height: 20px;
+    border: 3px solid rgba(255,255,255,.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.35);
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .loading-overlay.show { display: flex; }
+  .loading-box {
+    background: #fff;
+    border-radius: var(--radius);
+    padding: 24px 32px;
+    text-align: center;
+    box-shadow: var(--shadow);
+  }
+  .loading-box .spin2 {
+    width: 36px; height: 36px;
+    border: 4px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    margin: 0 auto 10px;
+  }
+  .loading-msg { font-weight: 600; color: var(--text-muted); font-size: .9rem; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: calc(var(--nav-h) + 14px);
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: #1e293b;
+    color: #fff;
+    padding: 12px 22px;
+    border-radius: 30px;
+    font-size: .88rem;
+    font-weight: 600;
+    opacity: 0;
+    transition: all .3s;
+    pointer-events: none;
+    z-index: 500;
+    white-space: nowrap;
+    max-width: 90vw;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .toast.success { background: var(--success); }
+  .toast.error   { background: var(--danger); }
+  .toast.warning { background: var(--warning); }
+
+  /* ── Progress bar ── */
+  .upload-progress {
+    display: none;
+    background: var(--border);
+    border-radius: 10px;
+    height: 8px;
+    overflow: hidden;
+    margin-bottom: 12px;
+  }
+  .upload-progress.show { display: block; }
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary), var(--primary-light));
+    border-radius: 10px;
+    transition: width .4s ease;
+  }
+
+  /* ── Chip ── */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: .72rem;
+    font-weight: 600;
+  }
+
+  /* ── Divider ── */
+  .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+  /* ── Auth Screen ── */
+  .auth-screen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: linear-gradient(135deg, #0369a1 0%, #0ea5e9 50%, #38bdf8 100%);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .auth-screen.show { display: flex; }
+  .auth-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 32px 28px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 20px 60px rgba(0,0,0,.2);
+  }
+  .auth-logo { text-align: center; margin-bottom: 8px; font-size: 3rem; }
+  .auth-title { text-align: center; font-size: 1.3rem; font-weight: 800; color: var(--primary); margin-bottom: 4px; }
+  .auth-sub   { text-align: center; font-size: .8rem; color: var(--text-muted); margin-bottom: 24px; }
+  .auth-tabs  { display: flex; background: var(--bg); border-radius: 10px; padding: 4px; margin-bottom: 22px; gap: 4px; }
+  .auth-tab {
+    flex: 1;
+    padding: 9px;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    font-family: inherit;
+    font-size: .88rem;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--text-muted);
+    transition: all .2s;
+  }
+  .auth-tab.active { background: #fff; color: var(--primary); box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+  .auth-form { display: none; }
+  .auth-form.show { display: block; }
+  .auth-input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: .95rem;
+    font-family: inherit;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    margin-bottom: 12px;
+    transition: border-color .15s;
+  }
+  .auth-input:focus { border-color: var(--primary-light); background: #fff; }
+  .auth-error { color: var(--danger); font-size: .82rem; margin-bottom: 10px; min-height: 18px; }
+
+  /* زر تسجيل الخروج */
+  .logout-btn {
+    background: rgba(255,255,255,.2);
+    border: 1px solid rgba(255,255,255,.4);
+    color: #fff;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: .78rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    margin-right: auto;
+    transition: background .15s;
+  }
+  .logout-btn:hover { background: rgba(255,255,255,.3); }
+  .user-info { font-size: .78rem; opacity: .9; }
+
+  /* ── Desktop layout ── */
+  @media (min-width: 768px) {
+    body { padding-bottom: 0; }
+    .bottom-nav { display: none; }
+    .header { padding: 20px 32px; }
+
+    .desktop-layout {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      min-height: calc(100dvh - 76px);
+    }
+    .sidebar {
+      background: var(--card);
+      border-left: 1px solid var(--border);
+      padding: 24px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .sidebar-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      font-size: .9rem;
+      font-weight: 600;
+      font-family: inherit;
+      border-right: 3px solid transparent;
+      transition: all .15s;
+    }
+    .sidebar-btn:hover { background: var(--bg); color: var(--text); }
+    .sidebar-btn.active { color: var(--primary); background: var(--primary-bg); border-color: var(--primary); }
+    .sidebar-btn .icon { font-size: 1.2rem; }
+
+    .main-content { padding: 24px 32px; overflow-y: auto; }
+    .stats-row { grid-template-columns: repeat(4, 1fr); padding: 0 0 20px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Auth Screen -->
+<div class="auth-screen" id="authScreen">
+  <div class="auth-card">
+    <div class="auth-logo">💊</div>
+    <div class="auth-title">نوبكو فارما</div>
+    <div class="auth-sub">إدارة مخزون الأدوية</div>
+
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchAuthTab('login')" id="tab-login">تسجيل الدخول</button>
+      <button class="auth-tab" onclick="switchAuthTab('register')" id="tab-register">حساب جديد</button>
+    </div>
+
+    <!-- Login Form -->
+    <div class="auth-form show" id="form-login">
+      <input class="auth-input" type="text" id="l-username" placeholder="اسم المستخدم" autocomplete="username">
+      <input class="auth-input" type="password" id="l-password" placeholder="كلمة المرور" autocomplete="current-password">
+      <div class="auth-error" id="login-err"></div>
+      <button class="btn btn-primary" onclick="doLogin()" id="loginBtn">🔐 دخول</button>
+    </div>
+
+    <!-- Register Form -->
+    <div class="auth-form" id="form-register">
+      <input class="auth-input" type="text" id="r-name" placeholder="الاسم الكامل">
+      <input class="auth-input" type="text" id="r-username" placeholder="اسم المستخدم (إنجليزي)" autocomplete="username">
+      <input class="auth-input" type="password" id="r-password" placeholder="كلمة المرور (6 أحرف على الأقل)" autocomplete="new-password">
+      <div class="auth-error" id="register-err"></div>
+      <button class="btn btn-success" onclick="doRegister()" id="registerBtn">✅ إنشاء حساب</button>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-top">
+    <span class="header-logo">💊</span>
+    <div>
+      <h1>نوبكو فارما</h1>
+      <div class="header-sub user-info" id="headerUserInfo">إدارة مخزون الأدوية</div>
+    </div>
+    <button class="logout-btn" onclick="doLogout()">خروج ↩</button>
+  </div>
+</header>
+
+<!-- Desktop Layout Wrapper -->
+<div class="desktop-layout" id="desktopLayout">
+
+  <!-- Sidebar (desktop) -->
+  <nav class="sidebar" id="sidebar">
+    <button class="sidebar-btn active" onclick="switchTab('dashboard')" id="sb-dashboard">
+      <span class="icon">📊</span> لوحة التحكم
+    </button>
+    <button class="sidebar-btn" onclick="switchTab('inventory')" id="sb-inventory">
+      <span class="icon">📋</span> المخزون
+    </button>
+    <button class="sidebar-btn" onclick="switchTab('add')" id="sb-add">
+      <span class="icon">➕</span> إضافة دواء
+    </button>
+    <button class="sidebar-btn" onclick="switchTab('pdf')" id="sb-pdf">
+      <span class="icon">📄</span> رفع PDF
+    </button>
+  </nav>
+
+  <!-- Main Content -->
+  <div class="main-content" id="mainContent">
+
+    <!-- Stats Row (shown in all tabs on mobile, top of content on desktop) -->
+    <div class="stats-row" id="statsRow">
+      <div class="stat-card total">
+        <div class="stat-num blue" id="stat-total">—</div>
+        <div class="stat-label">إجمالي</div>
+      </div>
+      <div class="stat-card soon">
+        <div class="stat-num orange" id="stat-soon">—</div>
+        <div class="stat-label">خلال شهر</div>
+      </div>
+      <div class="stat-card crit">
+        <div class="stat-num red2" id="stat-crit">—</div>
+        <div class="stat-label">أسبوع</div>
+      </div>
+      <div class="stat-card exp">
+        <div class="stat-num red" id="stat-exp">—</div>
+        <div class="stat-label">منتهية</div>
+      </div>
+    </div>
+
+    <!-- ════ TAB: Dashboard ════ -->
+    <section class="tab-section active" id="tab-dashboard">
+      <h2 class="section-title">📊 لوحة التحكم</h2>
+
+      <div class="form-card" style="margin-bottom:12px">
+        <div style="font-size:.85rem;font-weight:700;color:var(--text-muted);margin-bottom:12px">⚡ إجراءات سريعة</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary" style="flex:1;min-width:130px" onclick="switchTab('scan_invoice')">
+            🧾 مسح فاتورة
+          </button>
+          <button class="btn btn-outline" style="flex:1;min-width:130px" onclick="switchTab('pdf')">
+            📄 رفع PDF
+          </button>
+        </div>
+        <div style="height:8px"></div>
+        <button class="btn btn-success" onclick="switchTab('add')">➕ إضافة دواء يدوياً</button>
+      </div>
+
+      <h2 class="section-title">⚠️ تنتهي قريباً</h2>
+      <div id="dash-expiring" class="med-list">
+        <div class="empty"><span class="empty-icon">⏳</span>جاري التحميل...</div>
+      </div>
+    </section>
+
+    <!-- ════ TAB: Inventory ════ -->
+    <section class="tab-section" id="tab-inventory">
+      <h2 class="section-title">📋 المخزون الكامل</h2>
+
+      <div class="search-bar">
+        <input type="search" id="searchInput" placeholder="🔍 ابحث عن دواء..." oninput="filterMeds()">
+        <select id="catFilter" onchange="filterMeds()">
+          <option value="all">كل الفئات</option>
+          <option value="أقراص">💊 أقراص</option>
+          <option value="شرابات">🍶 شرابات</option>
+          <option value="محاليل">💉 محاليل</option>
+          <option value="إبر">💉 إبر</option>
+          <option value="مراهم">🧴 مراهم</option>
+          <option value="تحاميل">🔵 تحاميل</option>
+          <option value="نقط">💧 نقط</option>
+          <option value="بخاخات">💨 بخاخات</option>
+          <option value="لصقات">🩹 لصقات</option>
+          <option value="أخرى">📦 أخرى</option>
+        </select>
+        <select id="statusFilter" onchange="filterMeds()">
+          <option value="all">كل الحالات</option>
+          <option value="ok">🟢 سليم</option>
+          <option value="soon">🟡 قريب</option>
+          <option value="critical">🟠 حرج</option>
+          <option value="expired">🔴 منتهي</option>
+        </select>
+      </div>
+
+      <div id="inv-count" style="font-size:.8rem;color:var(--text-muted);margin-bottom:10px"></div>
+      <div id="med-list" class="med-list">
+        <div class="empty"><span class="empty-icon">⏳</span>جاري التحميل...</div>
+      </div>
+    </section>
+
+    <!-- ════ TAB: Add Medication ════ -->
+    <section class="tab-section" id="tab-add">
+      <h2 class="section-title">➕ إضافة دواء</h2>
+      <div class="form-card">
+        <form id="addForm" onsubmit="submitAdd(event)">
+          <div class="form-group">
+            <label>اسم الدواء *</label>
+            <input type="text" id="f-name" placeholder="مثال: AMOXICILLIN 500MG CAPSULE" required>
+          </div>
+          <div class="form-group">
+            <label>رقم الباتش (Batch)</label>
+            <input type="text" id="f-batch" placeholder="مثال: BATCH001">
+          </div>
+          <div class="form-group">
+            <label>تاريخ الانتهاء *</label>
+            <input type="date" id="f-expiry" required>
+          </div>
+          <div class="form-group">
+            <label>الكمية</label>
+            <input type="number" id="f-qty" placeholder="1" min="1" value="1">
+          </div>
+          <button type="submit" class="btn btn-primary" id="addBtn">✅ إضافة إلى المخزون</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- ════ TAB: PDF Upload ════ -->
+    <section class="tab-section" id="tab-pdf">
+      <h2 class="section-title">📄 رفع ملف PDF</h2>
+
+      <!-- Drop Zone -->
+      <div class="drop-zone" id="dropZone" onclick="document.getElementById('pdfInput').click()"
+           ondragover="dragOver(event)" ondragleave="dragLeave(event)" ondrop="dropFile(event)">
+        <span class="dz-icon">📄</span>
+        <div class="dz-text">اسحب ملف PDF هنا أو انقر للاختيار</div>
+        <div class="dz-sub">نموذج استلام نوبكو — حد أقصى 10MB</div>
+      </div>
+      <input type="file" id="pdfInput" accept="application/pdf" style="display:none" onchange="handlePdfInput(this)">
+
+      <!-- Progress -->
+      <div class="upload-progress" id="uploadProgress">
+        <div class="progress-bar" id="progressBar" style="width:0%"></div>
+      </div>
+
+      <!-- Preview -->
+      <div id="pdfPreview" style="display:none">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div class="section-title" style="margin:0">📋 الأدوية المستخرجة</div>
+          <span id="previewCount" style="font-size:.8rem;color:var(--text-muted)"></span>
+        </div>
+        <div class="preview-table-wrap">
+          <table class="preview-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>اسم الدواء</th>
+                <th>Batch</th>
+                <th>تاريخ الانتهاء</th>
+                <th>الكمية</th>
+                <th>الفئة</th>
+              </tr>
+            </thead>
+            <tbody id="previewBody"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:4px">
+          <button class="btn btn-success" onclick="confirmPdf()" id="confirmBtn">
+            ✅ حفظ الكل في المخزون
+          </button>
+          <button class="btn btn-outline" onclick="cancelPdf()" style="flex:0;width:auto;padding:12px 18px">
+            ❌ إلغاء
+          </button>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /main-content -->
+</div><!-- /desktop-layout -->
+
+<!-- Bottom Navigation (mobile) -->
+<nav class="bottom-nav">
+  <button class="nav-btn active" onclick="switchTab('dashboard')" id="nav-dashboard">
+    <span class="icon">📊</span>لوحة
+  </button>
+  <button class="nav-btn" onclick="switchTab('inventory')" id="nav-inventory">
+    <span class="icon">📋</span>المخزون
+  </button>
+  <button class="nav-btn" onclick="switchTab('add')" id="nav-add">
+    <span class="icon">➕</span>إضافة
+  </button>
+  <button class="nav-btn" onclick="switchTab('pdf')" id="nav-pdf">
+    <span class="icon">📄</span>PDF
+  </button>
+</nav>
+
+<!-- Loading Overlay -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="loading-box">
+    <div class="spin2"></div>
+    <div class="loading-msg" id="loadingMsg">جاري المعالجة...</div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════════
+// State
+// ══════════════════════════════════════════════════════════════════════════════
+let allMeds = [];
+let pendingMeds = [];
+let activeTab = 'dashboard';
+let authToken = localStorage.getItem('nupco_token');
+let currentUser = null;
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Auth
+// ══════════════════════════════════════════════════════════════════════════════
+function switchAuthTab(tab) {
+  document.querySelectorAll('.auth-tab').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('show'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  document.getElementById('form-' + tab).classList.add('show');
+  document.getElementById('login-err').textContent = '';
+  document.getElementById('register-err').textContent = '';
+}
+
+async function doLogin() {
+  const btn = document.getElementById('loginBtn');
+  const err = document.getElementById('login-err');
+  btn.disabled = true; btn.textContent = '...';
+  err.textContent = '';
+  try {
+    const res  = await fetch('/api/auth/login', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ username: document.getElementById('l-username').value.trim(), password: document.getElementById('l-password').value })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    authToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem('nupco_token', authToken);
+    showApp();
+  } catch (e) { err.textContent = e.message; }
+  finally { btn.disabled = false; btn.innerHTML = '🔐 دخول'; }
+}
+
+async function doRegister() {
+  const btn = document.getElementById('registerBtn');
+  const err = document.getElementById('register-err');
+  btn.disabled = true; btn.textContent = '...';
+  err.textContent = '';
+  try {
+    const res  = await fetch('/api/auth/register', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ name: document.getElementById('r-name').value.trim(), username: document.getElementById('r-username').value.trim(), password: document.getElementById('r-password').value })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    authToken = data.token;
+    currentUser = data.user;
+    localStorage.setItem('nupco_token', authToken);
+    showApp();
+  } catch (e) { err.textContent = e.message; }
+  finally { btn.disabled = false; btn.innerHTML = '✅ إنشاء حساب'; }
+}
+
+function doLogout() {
+  authToken = null; currentUser = null;
+  localStorage.removeItem('nupco_token');
+  document.getElementById('authScreen').classList.add('show');
+}
+
+function showApp() {
+  document.getElementById('authScreen').classList.remove('show');
+  if (currentUser) {
+    document.getElementById('headerUserInfo').textContent = `مرحباً ${currentUser.name} 👋`;
+  }
+  init();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Init
+// ══════════════════════════════════════════════════════════════════════════════
+async function init() {
+  await Promise.all([loadStats(), loadMedications()]);
+  renderDashboardExpiring();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Navigation
+// ══════════════════════════════════════════════════════════════════════════════
+function switchTab(tab) {
+  if (tab === 'scan_invoice') { switchTab('pdf'); return; }
+  activeTab = tab;
+
+  document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('active'));
+
+  const section = document.getElementById('tab-' + tab);
+  if (section) section.classList.add('active');
+
+  const navBtn = document.getElementById('nav-' + tab);
+  if (navBtn) navBtn.classList.add('active');
+
+  const sbBtn = document.getElementById('sb-' + tab);
+  if (sbBtn) sbBtn.classList.add('active');
+
+  if (tab === 'inventory') renderInventory();
+  if (tab === 'dashboard') renderDashboardExpiring();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// API Helpers
+// ══════════════════════════════════════════════════════════════════════════════
+async function api(method, path, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (authToken) headers['Authorization'] = 'Bearer ' + authToken;
+  const opts = { method, headers };
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch('/api' + path, opts);
+  if (res.status === 401) { doLogout(); throw new Error('انتهت الجلسة'); }
+  return res.json();
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Stats
+// ══════════════════════════════════════════════════════════════════════════════
+async function loadStats() {
+  try {
+    const data = await api('GET', '/stats');
+    document.getElementById('stat-total').textContent = data.total ?? '—';
+    document.getElementById('stat-soon').textContent  = data.soon ?? '—';
+    document.getElementById('stat-crit').textContent  = data.critical ?? '—';
+    document.getElementById('stat-exp').textContent   = data.expired ?? '—';
+  } catch {}
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Medications
+// ══════════════════════════════════════════════════════════════════════════════
+async function loadMedications() {
+  try {
+    allMeds = await api('GET', '/medications');
+  } catch { allMeds = []; }
+}
+
+function statusLabel(s) {
+  return { ok: '🟢 سليم', soon: '🟡 ينتهي قريباً', critical: '🟠 حرج', expired: '🔴 منتهي' }[s] || s;
+}
+
+function categoryIcon(cat) {
+  const icons = { 'أقراص':'💊','شرابات':'🍶','محاليل':'💉','إبر':'💉','مراهم':'🧴',
+                  'تحاميل':'🔵','نقط':'💧','بخاخات':'💨','لصقات':'🩹','أخرى':'📦' };
+  return (icons[cat] || '📦') + ' ' + (cat || 'أخرى');
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-GB');
+}
+
+function medCardHtml(m) {
+  const daysText = m.daysLeft < 0
+    ? `منتهي منذ ${Math.abs(m.daysLeft)} يوم`
+    : m.daysLeft === 0 ? 'ينتهي اليوم!' : `${m.daysLeft} يوم متبقي`;
+  return `
+    <div class="med-card ${m.status}">
+      <button class="med-del-btn" onclick="deleteMed(${m.id})" title="حذف">🗑️</button>
+      <div class="med-name">${m.name}</div>
+      <div class="med-meta">
+        ${m.batch ? `<span>📦 ${m.batch}</span>` : ''}
+        <span>📅 ${formatDate(m.expiry_date)}</span>
+        <span>📊 ${m.quantity}</span>
+      </div>
+      <span class="med-badge badge-${m.status}">${statusLabel(m.status)} — ${daysText}</span>
+      <span class="med-badge badge-cat" style="margin-right:4px">${categoryIcon(m.category)}</span>
+    </div>`;
+}
+
+function renderInventory() {
+  const search = (document.getElementById('searchInput')?.value || '').toLowerCase();
+  const cat    = document.getElementById('catFilter')?.value || 'all';
+  const status = document.getElementById('statusFilter')?.value || 'all';
+
+  let filtered = allMeds;
+  if (search) filtered = filtered.filter(m =>
+    m.name.toLowerCase().includes(search) || (m.batch || '').toLowerCase().includes(search));
+  if (cat !== 'all')    filtered = filtered.filter(m => m.category === cat);
+  if (status !== 'all') filtered = filtered.filter(m => m.status === status);
+
+  document.getElementById('inv-count').textContent = `${filtered.length} دواء`;
+
+  const list = document.getElementById('med-list');
+  if (!filtered.length) {
+    list.innerHTML = `<div class="empty"><span class="empty-icon">💊</span>لا توجد أدوية مطابقة</div>`;
+    return;
+  }
+  list.innerHTML = filtered.map(medCardHtml).join('');
+}
+
+function filterMeds() { renderInventory(); }
+
+function renderDashboardExpiring() {
+  const expiring = allMeds.filter(m => m.status !== 'ok').slice(0, 10);
+  const el = document.getElementById('dash-expiring');
+  if (!expiring.length) {
+    el.innerHTML = `<div class="empty"><span class="empty-icon">✅</span>لا توجد أدوية تنتهي قريباً</div>`;
+    return;
+  }
+  el.innerHTML = expiring.map(medCardHtml).join('');
+}
+
+async function deleteMed(id) {
+  if (!confirm('هل تريد حذف هذا الدواء من المخزون؟')) return;
+  try {
+    await api('DELETE', '/medications/' + id);
+    allMeds = allMeds.filter(m => m.id !== id);
+    renderInventory();
+    renderDashboardExpiring();
+    loadStats();
+    toast('تم حذف الدواء', 'success');
+  } catch (e) { toast('فشل الحذف: ' + e.message, 'error'); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Add Medication Form
+// ══════════════════════════════════════════════════════════════════════════════
+async function submitAdd(e) {
+  e.preventDefault();
+  const btn = document.getElementById('addBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> جاري الحفظ...';
+
+  try {
+    const data = await api('POST', '/medications', {
+      name:        document.getElementById('f-name').value.trim(),
+      batch:       document.getElementById('f-batch').value.trim(),
+      expiry_date: document.getElementById('f-expiry').value,
+      quantity:    parseInt(document.getElementById('f-qty').value) || 1,
+    });
+    if (data.error) throw new Error(data.error);
+
+    toast('✅ تم إضافة الدواء بنجاح!', 'success');
+    document.getElementById('addForm').reset();
+    await loadMedications();
+    loadStats();
+  } catch (err) {
+    toast('❌ ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '✅ إضافة إلى المخزون';
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PDF Upload
+// ══════════════════════════════════════════════════════════════════════════════
+function dragOver(e) { e.preventDefault(); document.getElementById('dropZone').classList.add('drag-over'); }
+function dragLeave()  { document.getElementById('dropZone').classList.remove('drag-over'); }
+function dropFile(e) {
+  e.preventDefault();
+  dragLeave();
+  const file = e.dataTransfer?.files?.[0];
+  if (file?.type === 'application/pdf') uploadPdf(file);
+  else toast('⚠️ الملف يجب أن يكون PDF', 'warning');
+}
+
+function handlePdfInput(input) {
+  const file = input.files?.[0];
+  if (file) uploadPdf(file);
+  input.value = '';
+}
+
+async function uploadPdf(file) {
+  if (file.size > 10 * 1024 * 1024) { toast('الملف أكبر من 10MB', 'error'); return; }
+
+  showLoading('جاري تحليل الملف... قد يستغرق هذا دقيقة أو أكثر حسب عدد الصفحات');
+  document.getElementById('pdfPreview').style.display = 'none';
+  document.getElementById('uploadProgress').classList.remove('show');
+
+  const formData = new FormData();
+  formData.append('pdf', file);
+
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5 * 60 * 1000); // 5 دقائق max
+    const res  = await fetch('/api/upload/pdf', { method: 'POST', body: formData, signal: controller.signal, headers: authToken ? {'Authorization': 'Bearer ' + authToken} : {} });
+    clearTimeout(timeout);
+    const data = await res.json();
+    hideLoading();
+
+    if (!res.ok || data.error) throw new Error(data.error || 'فشل التحليل');
+
+    pendingMeds = data.medications;
+    const pageInfo = data.totalPages > data.processedPages
+      ? ` (${data.processedPages} من ${data.totalPages} صفحة)`
+      : ` (${data.processedPages} صفحة)`;
+    renderPreview(pendingMeds);
+    toast(`✅ تم استخراج ${data.count} دواء${pageInfo}`, 'success');
+  } catch (err) {
+    hideLoading();
+    toast('❌ ' + err.message, 'error');
+  }
+}
+
+function renderPreview(meds) {
+  document.getElementById('previewCount').textContent = `${meds.length} دواء`;
+  const body = document.getElementById('previewBody');
+  body.innerHTML = meds.map((m, i) => `
+    <tr>
+      <td>${i + 1}</td>
+      <td><input value="${esc(m.name)}" oninput="pendingMeds[${i}].name=this.value" style="min-width:160px"></td>
+      <td><input value="${esc(m.batch || '')}" oninput="pendingMeds[${i}].batch=this.value" style="width:90px"></td>
+      <td><input type="date" value="${esc(m.expiry_date || '')}" oninput="pendingMeds[${i}].expiry_date=this.value"></td>
+      <td><input type="number" value="${m.quantity || 1}" min="1" oninput="pendingMeds[${i}].quantity=+this.value" style="width:60px"></td>
+      <td><span class="med-badge badge-cat">${categoryIcon(m.category)}</span></td>
+    </tr>`).join('');
+  document.getElementById('pdfPreview').style.display = 'block';
+}
+
+function esc(s) { return String(s || '').replace(/"/g, '&quot;').replace(/</g, '&lt;'); }
+
+async function confirmPdf() {
+  if (!pendingMeds.length) return;
+  const btn = document.getElementById('confirmBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> جاري الحفظ...';
+
+  try {
+    const data = await api('POST', '/upload/confirm', { medications: pendingMeds });
+    if (data.error) throw new Error(data.error);
+
+    const skipNote = data.skipped > 0 ? ` (تم تخطي ${data.skipped})` : '';
+    toast(`✅ تم حفظ ${data.saved} دواء!${skipNote}`, 'success');
+    cancelPdf();
+    await loadMedications();
+    loadStats();
+  } catch (err) {
+    toast('❌ ' + err.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = '✅ حفظ الكل في المخزون';
+  }
+}
+
+function cancelPdf() {
+  pendingMeds = [];
+  document.getElementById('pdfPreview').style.display = 'none';
+  document.getElementById('previewBody').innerHTML = '';
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// UI Helpers
+// ══════════════════════════════════════════════════════════════════════════════
+function showLoading(msg = 'جاري المعالجة...') {
+  document.getElementById('loadingMsg').textContent = msg;
+  document.getElementById('loadingOverlay').classList.add('show');
+}
+function hideLoading() {
+  document.getElementById('loadingOverlay').classList.remove('show');
+}
+
+let toastTimer;
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 3200);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// PWA Install
+// ══════════════════════════════════════════════════════════════════════════════
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredPrompt = e;
+});
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Service Worker (PWA)
+// ══════════════════════════════════════════════════════════════════════════════
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// Start — تحقق من الجلسة المحفوظة
+// ══════════════════════════════════════════════════════════════════════════════
+(async () => {
+  if (authToken) {
+    try {
+      const res  = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + authToken } });
+      const data = await res.json();
+      if (res.ok && data.user) {
+        currentUser = data.user;
+        showApp();
+        return;
+      }
+    } catch {}
+    // Token منتهي أو غير صالح
+    localStorage.removeItem('nupco_token');
+    authToken = null;
+  }
+  document.getElementById('authScreen').classList.add('show');
+})();
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // تعطيل جميع أزرار PDF وإظهار توجيه
+  const allButtons = document.querySelectorAll('button');
+  allButtons.forEach(function(btn) {
+    if (btn.textContent.includes('PDF')) {
+      btn.style.display = 'none';  // إخفاء الزر
+      var msg = document.createElement('p');
+      msg.textContent = '📎 لرفع فاتورة PDF: أرسل الملف إلى بوت تلغرام مباشرة.';
+      msg.style.color = '#475569';
+      msg.style.fontSize = '14px';
+      msg.style.margin = '10px 0';
+      btn.parentNode.insertBefore(msg, btn);
+    }
+  });
+});
+</script>

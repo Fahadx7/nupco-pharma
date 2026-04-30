@@ -1,0 +1,12 @@
+node_modules/
+config.json
+*.db
+*.session
+uploads/
+temp_images/
+*.log
+test-*.js
+nubco.pdf
+*.jpg
+*.png
+.DS_Store
