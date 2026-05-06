@@ -54,8 +54,8 @@ function startSetupWizard() {
             saveConfig(config);
             res.json({ success: true });
 
-            // إغلاق السيرفر وتمرير الإعدادات
-            setTimeout(() => { server.close(); resolve(config); }, 800);
+            // انتظر إرسال الرد ثم أغلق المنفذ وأكمل
+            setTimeout(() => { server.close(() => resolve(config)); }, 800);
         });
 
         const server = http.createServer(app);
