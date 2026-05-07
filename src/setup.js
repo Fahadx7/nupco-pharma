@@ -34,7 +34,10 @@ function startSetupWizard() {
         app.use(express.urlencoded({ extended: true }));
 
         // صفحة الإعداد
-        app.get('/', (_req, res) => res.send(SETUP_HTML));
+        app.get('/', (_req, res) => {
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.end(Buffer.from(SETUP_HTML, 'utf8'));
+        });
 
         // حفظ الإعدادات
         app.post('/save', (req, res) => {
