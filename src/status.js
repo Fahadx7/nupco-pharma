@@ -228,6 +228,7 @@ function buildStatusHtml(pharmacyName, stats, autoStart, uptime) {
 <footer>
   &copy; 2025 MedTracker &nbsp;|&nbsp;
   <a href="https://x.com/aboamran2011" target="_blank">FHADAI @ X</a>
+  <br><span style="font-size:12px;color:#94a3b8;">صُنع بحب ❤️</span>
 </footer>
 
 <script>
