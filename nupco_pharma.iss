@@ -2,7 +2,7 @@
 [Setup]
 AppName=نوبكو فارما
 AppVersion=5.10
-DefaultDirName={pf}\NupcoPharma
+DefaultDirName={commonpf}\NupcoPharma
 DefaultGroupName=نوبكو فارما
 OutputDir=.
 OutputBaseFilename=NupcoPharma_Setup_5.10
@@ -25,7 +25,7 @@ Source: "*";          DestDir: "{app}"; Flags: recursesubdirs ignoreversion; \
 Name: "desktopicon"; Description: "إنشاء اختصار على سطح المكتب"; GroupDescription: "خيارات إضافية"
 
 [Icons]
-Name: "{userdesktop}\نوبكو فارما";    Filename: "{app}\run.bat";     Tasks: desktopicon
+Name: "{commondesktop}\نوبكو فارما"; Filename: "{app}\run.bat";     Tasks: desktopicon
 Name: "{group}\تشغيل نوبكو فارما";   Filename: "{app}\run.bat"
 Name: "{group}\إعداد نوبكو فارما";   Filename: "{app}\install.bat"
 Name: "{group}\إلغاء التثبيت";        Filename: "{uninstallexe}"
