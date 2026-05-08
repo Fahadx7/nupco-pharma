@@ -130,7 +130,7 @@ router.get('/stats', async (req, res) => {
         const today = new Date();
         const in7   = new Date(); in7.setDate(today.getDate() + 7);
         const in30  = new Date(); in30.setDate(today.getDate() + 30);
-        const rows  = await sql`SELECT expiry_date, category FROM nupco_inventory WHERE status = 'active' AND user_id = ${req.user.id}`;
+        const rows  = await sql`SELECT expiry_date, category FROM nupco_inventory WHERE status = 'active' AND (user_id = ${req.user.id} OR user_id IS NULL)`;
 
         const total    = rows.length;
         const expired  = rows.filter(r => new Date(r.expiry_date) < today).length;
@@ -150,7 +150,7 @@ router.get('/medications', async (req, res) => {
     try {
         const rows = await sql`
             SELECT id, name, batch, expiry_date, quantity, category, source, created_at
-            FROM nupco_inventory WHERE status = 'active' AND user_id = ${req.user.id} ORDER BY expiry_date ASC
+            FROM nupco_inventory WHERE status = 'active' AND (user_id = ${req.user.id} OR user_id IS NULL) ORDER BY expiry_date ASC
         `;
         const today = new Date();
         let result = rows.map(r => {
@@ -189,7 +189,7 @@ router.post('/medications', async (req, res) => {
 // ══════════════════════════════════════════════════════════════════════════════
 router.delete('/medications/:id', async (req, res) => {
     try {
-        await sql`UPDATE nupco_inventory SET status = 'removed' WHERE id = ${parseInt(req.params.id)} AND user_id = ${req.user.id}`;
+        await sql`UPDATE nupco_inventory SET status = 'removed' WHERE id = ${parseInt(req.params.id)} AND (user_id = ${req.user.id} OR user_id IS NULL)`;
         res.json({ success: true });
     } catch (err) { res.status(500).json({ error: err.message }); }
 });

@@ -34,6 +34,14 @@ db.pragma('foreign_keys = ON');
 
 // إنشاء الجداول تلقائياً عند أول تشغيل
 db.exec(`
+    CREATE TABLE IF NOT EXISTS users (
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        username    TEXT    NOT NULL UNIQUE,
+        password    TEXT    NOT NULL,
+        name        TEXT    NOT NULL,
+        created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS nupco_inventory (
         id          INTEGER PRIMARY KEY AUTOINCREMENT,
         name        TEXT    NOT NULL,
@@ -44,11 +52,16 @@ db.exec(`
         source      TEXT,
         status      TEXT    DEFAULT 'active',
         added_by    INTEGER,
+        user_id     INTEGER,
         created_at  DATETIME DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_expiry_date ON nupco_inventory (expiry_date);
     CREATE INDEX IF NOT EXISTS idx_status      ON nupco_inventory (status);
+    CREATE INDEX IF NOT EXISTS idx_user_id     ON nupco_inventory (user_id);
 `);
+
+// ترقية: إضافة user_id لو ما كانت موجودة في قاعدة بيانات قديمة
+try { db.exec("ALTER TABLE nupco_inventory ADD COLUMN user_id INTEGER"); } catch {}
 
 /**
  * Tagged template متوافق مع واجهة Neon — يعمل بدون تعديل على جميع الأوامر
