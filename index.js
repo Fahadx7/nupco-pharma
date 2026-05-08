@@ -54,7 +54,15 @@ async function main() {
     startDailyScheduler(bot, config.MY_CHAT_ID);
     startStatusServer(PHARMACY_NAME, db);
     showStartupNotification(PHARMACY_NAME);
-    console.log(`\n💊 ${PHARMACY_NAME} — البوت يعمل\n📊 لوحة التحكم: http://localhost:3000`);
+    const { networkInterfaces } = require('os');
+    const nets = networkInterfaces();
+    let localIP = 'localhost';
+    for (const iface of Object.values(nets)) {
+        for (const net of iface) {
+            if (net.family === 'IPv4' && !net.internal) { localIP = net.address; break; }
+        }
+    }
+    console.log(`\n💊 ${PHARMACY_NAME} — البوت يعمل\n📊 لوحة التحكم: http://localhost:3000\n📱 من الجوال:   http://${localIP}:3000`);
     const { exec } = require('child_process');
     setTimeout(() => exec('start http://localhost:3000', () => {}), 1000);
     setTimeout(() => checkForUpdate(bot, config.MY_CHAT_ID), 10000);

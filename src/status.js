@@ -62,8 +62,17 @@ function startStatusServer(pharmacyName, db) {
     });
 
     const server = http.createServer(app);
-    server.listen(3000, '127.0.0.1', () => {
-        console.log('🌐 لوحة التحكم: http://localhost:3000');
+    server.listen(3000, '0.0.0.0', () => {
+        const { networkInterfaces } = require('os');
+        const nets = networkInterfaces();
+        let localIP = 'localhost';
+        for (const iface of Object.values(nets)) {
+            for (const net of iface) {
+                if (net.family === 'IPv4' && !net.internal) { localIP = net.address; break; }
+            }
+        }
+        console.log(`🌐 لوحة التحكم: http://localhost:3000`);
+        console.log(`📱 من الجوال: http://${localIP}:3000`);
     });
 
     return server;
