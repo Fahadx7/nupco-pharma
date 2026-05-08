@@ -53,8 +53,8 @@ async function main() {
     startDailyScheduler(bot, config.MY_CHAT_ID);
     startStatusServer(PHARMACY_NAME, db);
     showStartupNotification(PHARMACY_NAME);
-    const { exec } = require('child_process');
-    exec('start http://localhost:3000', () => {});
     console.log(`\n💊 ${PHARMACY_NAME} — البوت يعمل\n📊 لوحة التحكم: http://localhost:3000`);
+    const { exec } = require('child_process');
+    setTimeout(() => exec('start http://localhost:3000', () => {}), 1000);
 }
 main().catch(err => { console.error('❌ خطأ فادح:', err.message); process.exit(1); });

@@ -11,7 +11,20 @@ const { addMedicationToDB } = require('./add');
 // ---------------------------------------------------
 const GROQ_API_KEY = process.env.GROQ_API_KEY;
 const GROQ_MODEL = 'meta-llama/llama-4-scout-17b-16e-instruct';
-const GS_PATH = 'C:/Program Files/gs/gs10.07.0/bin/gswin64c.exe';
+
+// اكتشاف مسار Ghostscript تلقائياً (مطلوب لدعم PDF)
+function findGhostscript() {
+    const fs = require('fs');
+    const candidates = [
+        'C:/Program Files/gs/gs10.07.0/bin/gswin64c.exe',
+        'C:/Program Files/gs/gs10.04.0/bin/gswin64c.exe',
+        'C:/Program Files/gs/gs10.03.1/bin/gswin64c.exe',
+        'C:/Program Files (x86)/gs/gs9.56.1/bin/gswin32c.exe',
+        'C:/Program Files (x86)/gs/gs9.55.0/bin/gswin32c.exe',
+    ];
+    return candidates.find(p => fs.existsSync(p)) || null;
+}
+const GS_PATH = findGhostscript();
 
 // ---------------------------------------------------
 // دالة لتحويل تنسيق التاريخ إلى YYYY-MM-DD
@@ -326,8 +339,15 @@ async function handleConfirmation(bot, query) {
 }
 
 async function handlePdf(bot, msg) {
-    // معالج PDF كما هو سابقاً (للاختصار)
-    await bot.sendMessage(msg.chat.id, '⚠️ دعم PDF متاح لكن يفضل استخدام الصور.');
+    if (!GS_PATH) {
+        await bot.sendMessage(msg.chat.id,
+            '⚠️ دعم PDF غير متاح على هذا الجهاز.\n' +
+            'يرجى استخدام *صورة واضحة* للفاتورة أو علبة الدواء بدلاً من PDF.',
+            { parse_mode: 'Markdown' }
+        );
+        return;
+    }
+    await bot.sendMessage(msg.chat.id, '⚠️ معالجة PDF قيد التطوير. استخدم الصور حالياً.');
 }
 
 // ربط معالج الرسائل النصية - يجب إضافته في الملف الرئيسي index.js

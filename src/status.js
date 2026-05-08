@@ -16,7 +16,8 @@ function startStatusServer(pharmacyName, db) {
         const stats = getStats(db);
         const autoStart = isAutoStartEnabled();
         const uptime = formatUptime(Date.now() - _startTime);
-        res.send(buildStatusHtml(pharmacyName, stats, autoStart, uptime));
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.end(Buffer.from(buildStatusHtml(pharmacyName, stats, autoStart, uptime), 'utf8'));
     });
 
     // ✅ API: جميع الأدوية (مصفوفة مباشرة)

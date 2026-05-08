@@ -34,7 +34,10 @@ function startSetupWizard() {
         app.use(express.urlencoded({ extended: true }));
 
         // صفحة الإعداد
-        app.get('/', (_req, res) => res.send(SETUP_HTML));
+        app.get('/', (_req, res) => {
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            res.end(Buffer.from(SETUP_HTML, 'utf8'));
+        });
 
         // حفظ الإعدادات
         app.post('/save', (req, res) => {
@@ -54,8 +57,8 @@ function startSetupWizard() {
             saveConfig(config);
             res.json({ success: true });
 
-            // إغلاق السيرفر وتمرير الإعدادات
-            setTimeout(() => { server.close(); resolve(config); }, 800);
+            // انتظر إرسال الرد ثم أغلق المنفذ وأكمل
+            setTimeout(() => { server.close(() => resolve(config)); }, 800);
         });
 
         const server = http.createServer(app);
