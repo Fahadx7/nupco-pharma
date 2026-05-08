@@ -2,6 +2,7 @@ const path = require('path');
 const { loadConfig, isConfigComplete, startSetupWizard } = require('./src/setup');
 const { startStatusServer } = require('./src/status');
 const { showStartupNotification } = require('./src/autostart');
+const { checkForUpdate } = require('./src/updater');
 
 async function main() {
     let config = loadConfig();
@@ -56,5 +57,6 @@ async function main() {
     console.log(`\n💊 ${PHARMACY_NAME} — البوت يعمل\n📊 لوحة التحكم: http://localhost:3000`);
     const { exec } = require('child_process');
     setTimeout(() => exec('start http://localhost:3000', () => {}), 1000);
+    setTimeout(() => checkForUpdate(bot, config.MY_CHAT_ID), 10000);
 }
 main().catch(err => { console.error('❌ خطأ فادح:', err.message); process.exit(1); });

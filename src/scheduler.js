@@ -2,6 +2,7 @@
 const cron = require('node-cron');
 const sql  = require('./db');
 const { icon } = require('./utils/categorize');
+const { checkForUpdate } = require('./updater');
 
 /**
  * يبني تقرير الأدوية القريبة الانتهاء مصنّفاً حسب الفئة
@@ -52,6 +53,7 @@ async function buildDailyReport() {
  * جدولة تقرير يومي الساعة 9 صباحاً (توقيت الرياض = 6 UTC)
  */
 function startDailyScheduler(bot, chatId) {
+    // تقرير يومي الساعة 9 صباحاً (6 UTC = 9 توقيت الرياض)
     cron.schedule('0 6 * * *', async () => {
         try {
             const report = await buildDailyReport();
@@ -64,6 +66,9 @@ function startDailyScheduler(bot, chatId) {
             await bot.sendMessage(chatId, `❌ خطأ في التقرير اليومي: ${err.message}`);
         }
     }, { timezone: 'UTC' });
+
+    // فحص التحديثات كل أحد الساعة 9 صباحاً
+    cron.schedule('0 6 * * 0', () => checkForUpdate(bot, chatId), { timezone: 'UTC' });
 }
 
 module.exports = { startDailyScheduler, buildDailyReport };
