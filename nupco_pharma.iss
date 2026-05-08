@@ -17,25 +17,20 @@ SetupLogging=yes
 Name: "arabic"; MessagesFile: "compiler:Languages\Arabic.isl"
 
 [Files]
-Source: "*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion; \
-  Excludes: "node_modules\*,*.iss,NupcoPharma_Setup*,pharmacy.db,config.json"
+Source: "dist\medtracker.exe";      DestDir: "{app}"; Flags: ignoreversion
+Source: "dist\better_sqlite3.node"; DestDir: "{app}"; Flags: ignoreversion
+Source: "public\*";                 DestDir: "{app}\public"; Flags: recursesubdirs ignoreversion
+Source: "run.bat";                  DestDir: "{app}"; Flags: ignoreversion
 
 [Tasks]
 Name: "desktopicon"; Description: "إنشاء اختصار على سطح المكتب"; GroupDescription: "خيارات إضافية"
 
 [Icons]
-Name: "{commondesktop}\نوبكو فارما"; Filename: "{app}\run.bat";    Tasks: desktopicon
+Name: "{commondesktop}\نوبكو فارما"; Filename: "{app}\run.bat"; Tasks: desktopicon
 Name: "{group}\تشغيل نوبكو فارما";  Filename: "{app}\run.bat"
-Name: "{group}\إعداد نوبكو فارما";  Filename: "{app}\install.bat"
 Name: "{group}\إلغاء التثبيت";       Filename: "{uninstallexe}"
 
 [Run]
-Filename: "{cmd}"; \
-  Parameters: "/c ""{app}\install.bat"""; \
-  WorkingDir: "{app}"; \
-  Flags: waituntilterminated; \
-  StatusMsg: "Installing Node.js and packages..."
-
 Filename: "{app}\run.bat"; \
   Flags: postinstall nowait shellexec; \
   Description: "تشغيل البوت الآن"
