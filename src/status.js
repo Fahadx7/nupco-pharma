@@ -57,46 +57,54 @@ function startStatusServer(pharmacyName, db) {
         res.json({ success: true });
     });
 
-    // ── API: رفع PDF واستخراج الأدوية ────────────────────────────
+    // ── API: رفع PDF (mupdf WASM — بدون Ghostscript) ──────────────
     const multer  = require('multer');
-    const { fromBuffer } = require('pdf2pic');
     const axios   = require('axios');
-    const upload  = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+    const upload  = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15*1024*1024 } });
 
     app.post('/api/upload/pdf', upload.single('pdf'), async (req, res) => {
         if (!req.file) return res.status(400).json({ error: 'لم يتم إرفاق ملف' });
         const GROQ_KEY = process.env.GROQ_API_KEY;
-        if (!GROQ_KEY) return res.status(500).json({ error: 'GROQ_API_KEY غير مضبوط' });
+        if (!GROQ_KEY) return res.status(500).json({ error: 'GROQ_API_KEY غير مضبوط — أعد إعداد البوت' });
         try {
-            // تحويل PDF → صور
-            const converter = fromBuffer(req.file.buffer, {
-                density: 150, format: 'jpeg', width: 1200, height: 1600,
-                saveFilename: 'page', savePath: require('os').tmpdir(),
-            });
-            const pageCount = await getPdfPageCount(req.file.buffer);
-            const maxPages  = Math.min(pageCount, 4);
+            // mupdf — يحوّل كل صفحة لصورة JPEG، لا يحتاج Ghostscript
+            const mupdf     = await import('mupdf');
+            const doc       = mupdf.default.PDFDocument.openDocument(req.file.buffer, 'application/pdf');
+            const pageCount = doc.countPages();
+            const maxPages  = Math.min(pageCount, 5);
             const allMeds   = [];
-            for (let p = 1; p <= maxPages; p++) {
+
+            for (let p = 0; p < maxPages; p++) {
                 try {
-                    const result = await converter(p, { responseType: 'base64' });
-                    const b64    = result.base64 || (result.path ? require('fs').readFileSync(result.path, 'base64') : null);
-                    if (!b64) continue;
-                    const meds = await analyzeWithGroq(b64, GROQ_KEY);
+                    const page   = doc.loadPage(p);
+                    const pixmap = page.toPixmap([1.5,0,0,1.5,0,0], mupdf.default.ColorSpace.DeviceRGB, false);
+                    const jpg    = pixmap.asJPEG(85, false);
+                    const b64    = Buffer.from(jpg).toString('base64');
+                    page.destroy(); pixmap.destroy();
+                    const meds = await groqVision(b64, GROQ_KEY);
                     allMeds.push(...meds);
-                } catch {}
+                } catch (pageErr) {
+                    console.warn(`⚠️ صفحة ${p+1} فشلت:`, pageErr.message);
+                }
             }
-            // تنظيف وتوحيد البيانات
+            doc.destroy();
+
+            // تنظيف وتوحيد
             const today = new Date().toISOString().split('T')[0];
-            const medications = allMeds.map((m, i) => ({
-                id: i + 1,
-                name:        m.name        || 'دواء غير محدد',
-                batch:       m.batch       || '',
-                expiry_date: m.expiry || m.expiry_date || today,
-                quantity:    parseInt(m.quantity) || 1,
-                category:    m.unit || 'أخرى',
-            })).filter(m => m.name && m.name !== 'دواء غير محدد');
+            const medications = allMeds
+                .filter(m => m.name && m.name.length > 2)
+                .map((m, i) => ({
+                    id:          i + 1,
+                    name:        (m.name || '').trim().replace(/\s+/g,' '),
+                    batch:       (m.batch || '').trim(),
+                    expiry_date: normalizeExpiry(m.expiry || m.expiry_date) || today,
+                    quantity:    parseInt(m.quantity) || 1,
+                    category:    'أخرى',
+                }));
+
             res.json({ count: medications.length, medications, processedPages: maxPages, totalPages: pageCount });
         } catch (e) {
+            console.error('PDF upload error:', e.message);
             res.status(500).json({ error: e.message || 'فشل تحليل الملف' });
         }
     });
@@ -108,44 +116,47 @@ function startStatusServer(pharmacyName, db) {
         const stmt = db.prepare("INSERT INTO nupco_inventory (name, batch, expiry_date, quantity, status) VALUES (?, ?, ?, ?, 'active')");
         medications.forEach(m => {
             if (!m.name || !m.expiry_date) { skipped++; return; }
-            try { stmt.run(m.name, m.batch || null, m.expiry_date, parseInt(m.quantity) || 1); saved++; }
+            try { stmt.run(m.name, m.batch||null, m.expiry_date, parseInt(m.quantity)||1); saved++; }
             catch { skipped++; }
         });
         res.json({ success: true, saved, skipped });
     });
 
-    // ── دوال PDF المساعدة ──────────────────────────────────────
-    async function getPdfPageCount(buffer) {
-        try {
-            const str = buffer.toString('latin1');
-            const match = str.match(/\/Count\s+(\d+)/);
-            return match ? parseInt(match[1]) : 1;
-        } catch { return 1; }
-    }
-
-    async function analyzeWithGroq(base64Image, apiKey) {
-        const prompt = `أنت مساعد طبي. استخرج جميع الأدوية من هذه الصورة (فاتورة نوبكو).
-أعد JSON array فقط، كل عنصر:
-{"name":"اسم الدواء","quantity":1,"expiry":"YYYY-MM-DD أو null","batch":"رقم الباتش أو null"}
-لا تضف أي نص خارج JSON.`;
+    // ── Groq Vision ────────────────────────────────────────────────
+    async function groqVision(base64Jpeg, apiKey) {
+        const prompt = `أنت نظام استخراج بيانات طبي متخصص في فواتير نوبكو.
+استخرج جميع الأدوية من الصورة. أعد JSON array فقط، لا شيء آخر:
+[{"name":"اسم الدواء الكامل كما هو مكتوب","batch":"رقم الباتش","expiry_date":"YYYY-MM-DD","quantity":رقم}]
+- تاريخ الانتهاء: حوّل DD/MM/YYYY إلى YYYY-MM-DD
+- الكمية: رقم صحيح فقط
+- إذا لم يوجد باتش اكتب null`;
         const resp = await axios.post('https://api.groq.com/openai/v1/chat/completions', {
             model: 'meta-llama/llama-4-scout-17b-16e-instruct',
             messages: [{ role: 'user', content: [
                 { type: 'text', text: prompt },
-                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Image}` } }
+                { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64Jpeg}` } }
             ]}],
             max_tokens: 2000, temperature: 0.1,
         }, { headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' }, timeout: 90000 });
-        const content = resp.data.choices[0].message.content;
-        try { return JSON.parse(content); }
+        const raw = resp.data.choices[0].message.content.trim();
+        try { return JSON.parse(raw); }
         catch {
-            const m = content.match(/\[[\s\S]*\]/);
-            if (m) return JSON.parse(m[0]);
-            return [];
+            const m = raw.match(/\[[\s\S]*\]/);
+            return m ? JSON.parse(m[0]) : [];
         }
     }
 
-    // تفعيل/إلغاء التشغيل التلقائي
+    function normalizeExpiry(raw) {
+        if (!raw) return null;
+        const m = String(raw).match(/(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
+        if (!m) return null;
+        let [,d,mo,y] = m;
+        if (y.length===2) y='20'+y;
+        if (+y<2020||+y>2040) return null;
+        return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+    }
+
+        // تفعيل/إلغاء التشغيل التلقائي
     app.post('/autostart', (req, res) => {
         const enable = req.body.enable === 'true';
         const ok = enable ? enableAutoStart() : disableAutoStart();
