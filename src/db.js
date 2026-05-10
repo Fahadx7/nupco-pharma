@@ -3,17 +3,26 @@ const path = require('path');
 
 // ── pkg compat: عند تشغيله كـ exe يجب أن يكون better_sqlite3.node بجانبه ─────
 if (process.pkg) {
-    const bindingPath = path.join(path.dirname(process.execPath), 'better_sqlite3.node');
     const fs = require('fs');
+    const Module = require('module');
+    const bindingPath = path.join(path.dirname(process.execPath), 'better_sqlite3.node');
+
     if (!fs.existsSync(bindingPath)) {
         console.error('❌ الملف better_sqlite3.node غير موجود بجانب البرنامج.');
         console.error('   تأكد أن كلا الملفين في نفس المجلد:');
-        console.error('   • medtracker.exe');
+        console.error('   • نوبكو-فارما.exe');
         console.error('   • better_sqlite3.node');
         process.exit(1);
     }
-    // توجيه bindings للمسار الصحيح
-    process.env.BETTER_SQLITE3_BINDING = bindingPath;
+
+    // bindings لا يقرأ env vars — نُعيد توجيه أي require لـ better_sqlite3 للمسار الخارجي
+    const origResolve = Module._resolveFilename;
+    Module._resolveFilename = function (request, ...args) {
+        if (typeof request === 'string' && request.includes('better_sqlite3')) {
+            return bindingPath;
+        }
+        return origResolve.call(this, request, ...args);
+    };
 }
 
 let Database;
