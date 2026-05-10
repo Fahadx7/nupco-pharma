@@ -1,6 +1,7 @@
 'use strict';
 const express = require('express');
-const http = require('http');
+const http    = require('http');
+const path    = require('path');
 const { CONFIG_PATH } = require('./setup');
 const { enableAutoStart, disableAutoStart, isAutoStartEnabled } = require('./autostart');
 
@@ -11,47 +12,49 @@ function startStatusServer(pharmacyName, db) {
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
 
-    // الصفحة الرئيسية
-    app.get('/', (_req, res) => {
-        const stats = getStats(db);
-        const autoStart = isAutoStartEnabled();
-        const uptime = formatUptime(Date.now() - _startTime);
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.end(Buffer.from(buildStatusHtml(pharmacyName, stats, autoStart, uptime), 'utf8'));
+    // ── Static: يخدم public/index.html ─────────────────────────
+    app.use(express.static(path.join(__dirname, '../public')));
+
+    // ── Auth bypass (تطبيق محلي) ────────────────────────────────
+    app.post('/api/auth/login',    (_req, res) => res.json({ token:'local', user:{ id:1, name:pharmacyName, username:'admin' } }));
+    app.post('/api/auth/register', (_req, res) => res.json({ token:'local', user:{ id:1, name:pharmacyName, username:'admin' } }));
+    app.get('/api/auth/me',        (_req, res) => res.json({ user:{ id:1, name:pharmacyName, username:'admin' } }));
+
+    // ── API: إحصائيات ───────────────────────────────────────────
+    app.get('/api/stats', (_req, res) => {
+        const s = getStats(db);
+        res.json({ total: s.total, soon: s.month, critical: s.week, expired: s.expired });
     });
 
-    // ✅ API: جميع الأدوية (مصفوفة مباشرة)
-    app.get('/api/medications', (_req, res) => {
+    // ── API: قائمة الأدوية مع daysLeft و status ──────────────────
+    app.get('/api/medications', (req, res) => {
         try {
             const rows = db.prepare("SELECT * FROM nupco_inventory WHERE status='active' ORDER BY expiry_date ASC").all();
-            res.json(rows);   // صفيف وليس كائن
-        } catch (e) {
-            res.json([]);
-        }
+            const today = new Date();
+            let result = rows.map(r => {
+                const daysLeft = Math.ceil((new Date(r.expiry_date) - today) / 86400000);
+                const status   = daysLeft < 0 ? 'expired' : daysLeft <= 7 ? 'critical' : daysLeft <= 30 ? 'soon' : 'ok';
+                return { ...r, daysLeft, status, batch: r.batch || r.notes || '' };
+            });
+            if (req.query.search) { const q = req.query.search.toLowerCase(); result = result.filter(m => m.name.toLowerCase().includes(q) || (m.batch||'').toLowerCase().includes(q)); }
+            if (req.query.status && req.query.status !== 'all') result = result.filter(m => m.status === req.query.status);
+            res.json(result);
+        } catch (e) { res.json([]); }
     });
 
-    // ✅ API: إضافة دواء
+    // ── API: إضافة دواء ──────────────────────────────────────────
     app.post('/api/medications', (req, res) => {
-        const { name, quantity, expiry_date, notes } = req.body;
+        const { name, batch, expiry_date, quantity } = req.body;
         if (!name || !expiry_date) return res.status(400).json({ error: 'الاسم وتاريخ الصلاحية مطلوبان' });
-        const stmt = db.prepare("INSERT INTO nupco_inventory (name, quantity, expiry_date, notes, status) VALUES (?, ?, ?, ?, 'active')");
-        const info = stmt.run(name, quantity, expiry_date, notes);
-        res.json({ id: info.lastInsertRowid });
+        const stmt = db.prepare("INSERT INTO nupco_inventory (name, batch, expiry_date, quantity, status) VALUES (?, ?, ?, ?, 'active')");
+        const info = stmt.run(name, batch || null, expiry_date, parseInt(quantity) || 1);
+        res.json({ success: true, medication: { id: info.lastInsertRowid, name, batch, expiry_date, quantity } });
     });
 
-    // ✅ API: حذف دواء
+    // ── API: حذف دواء ────────────────────────────────────────────
     app.delete('/api/medications/:id', (req, res) => {
         db.prepare("UPDATE nupco_inventory SET status='deleted' WHERE id = ?").run(req.params.id);
         res.json({ success: true });
-    });
-
-    // API: إحصائيات سريعة
-    app.get('/api/stats', (_req, res) => {
-        res.json({
-            uptime: formatUptime(Date.now() - _startTime),
-            ...getStats(db),
-            autoStart: isAutoStartEnabled(),
-        });
     });
 
     // تفعيل/إلغاء التشغيل التلقائي
