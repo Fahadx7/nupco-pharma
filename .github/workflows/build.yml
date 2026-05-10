@@ -1,0 +1,86 @@
+name: 🏗️ بناء وإصدار NupcoPharma
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'رقم الإصدار (مثال: 5.10)'
+        required: true
+        default: '5.10'
+
+jobs:
+  build-installer:
+    name: بناء مثبّت Windows
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: تحديد رقم الإصدار
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $inp = "${{ inputs.version }}"
+          $ver = if ($tag -match '^v(.+)$') { $Matches[1] } elseif ($inp) { $inp } else { "5.10" }
+          Write-Host "VERSION=$ver"
+          Add-Content $env:GITHUB_ENV "VERSION=$ver"
+
+      - name: تحديث رقم الإصدار في الـ ISS
+        shell: pwsh
+        run: |
+          $v = $env:VERSION
+          $content = Get-Content nupco_pharma.iss -Raw
+          $content = $content -replace 'AppVersion=.*',         "AppVersion=$v"
+          $content = $content -replace 'OutputBaseFilename=.*', "OutputBaseFilename=NupcoPharma_Setup_$v"
+          Set-Content nupco_pharma.iss $content -Encoding UTF8
+          Write-Host "✅ إصدار الـ ISS: $v"
+
+      - name: تثبيت Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+
+      - name: بناء المثبّت
+        shell: pwsh
+        run: |
+          $iscc = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          & $iscc nupco_pharma.iss
+          if ($LASTEXITCODE -ne 0) { Write-Error "❌ فشل بناء المثبّت"; exit 1 }
+          $file = Get-Item "NupcoPharma_Setup_*.exe"
+          Write-Host "✅ $($file.Name) ($([math]::Round($file.Length/1MB,1)) MB)"
+          Add-Content $env:GITHUB_ENV "SETUP_FILE=$($file.Name)"
+
+      - name: رفع artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NupcoPharma-Setup
+          path: NupcoPharma_Setup_*.exe
+
+      - name: GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "💊 NupcoPharma v${{ env.VERSION }}"
+          files: ${{ env.SETUP_FILE }}
+          body: |
+            ## 💊 NupcoPharma v${{ env.VERSION }}
+            > بوت تليجرام لإدارة مخزون الأدوية — مجاني لجميع الصيدليات
+
+            ### 📥 طريقة التثبيت:
+            1. نزّل `${{ env.SETUP_FILE }}` من الأسفل
+            2. شغّل المثبّت بصلاحيات المسؤول
+            3. سيُثبَّت Node.js تلقائياً إذا لم يكن موجوداً
+            4. بعد اكتمال التثبيت، شغّل البوت من سطح المكتب
+
+            ### ✅ المتطلبات:
+            - Windows 10 / 11
+            - اتصال بالإنترنت (للتثبيت الأول فقط)
+
+            ---
+            صنع بـ ❤️ بواسطة [FHADAI](https://x.com/aboamran2011)
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
