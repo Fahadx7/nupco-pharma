@@ -404,6 +404,46 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--bg
 <div class="toast" id="toast"></div>
 
 <script>
+// ══════ Settings ══════
+function openSettings(){document.getElementById('settingsOverlay').classList.add('open');}
+function closeSettings(){document.getElementById('settingsOverlay').classList.remove('open');}
+function setTheme(t){
+  document.documentElement.setAttribute('data-theme',t);
+  document.getElementById('btn-dark').classList.toggle('active',t==='dark');
+  document.getElementById('btn-light').classList.toggle('active',t==='light');
+  localStorage.setItem('np_theme',t);
+}
+function setAccent(a,el){
+  document.documentElement.setAttribute('data-accent',a);
+  document.querySelectorAll('.accent-dot').forEach(d=>d.classList.remove('active'));
+  el.classList.add('active');
+  localStorage.setItem('np_accent',a);
+  if(typeof drawAreaChart==='function')drawAreaChart();
+}
+function setFontSize(s,el){
+  document.documentElement.setAttribute('data-fs',s);
+  document.querySelectorAll('.fs-btn').forEach(b=>b.classList.remove('active'));
+  el.classList.add('active');
+  localStorage.setItem('np_fs',s);
+}
+// ── تحميل التفضيلات المحفوظة ──
+(function(){
+  const t=localStorage.getItem('np_theme')||'dark';
+  const a=localStorage.getItem('np_accent')||'mint';
+  const f=localStorage.getItem('np_fs')||'md';
+  document.documentElement.setAttribute('data-theme',t);
+  document.documentElement.setAttribute('data-accent',a);
+  document.documentElement.setAttribute('data-fs',f);
+  window.addEventListener('DOMContentLoaded',function(){
+    document.getElementById('btn-dark')?.classList.toggle('active',t==='dark');
+    document.getElementById('btn-light')?.classList.toggle('active',t==='light');
+    document.querySelectorAll('.accent-dot').forEach(d=>d.classList.toggle('active',d.dataset.acc===a));
+    const fsEl=document.getElementById('btn-fs-'+f);
+    if(fsEl){document.querySelectorAll('.fs-btn').forEach(b=>b.classList.remove('active'));fsEl.classList.add('active');}
+  });
+})();
+
+// ══════ State ══════
 let allMeds=[],pendingMeds=[],activeTab='dashboard';
 let authToken=localStorage.getItem('nupco_token'),currentUser=null;
 
