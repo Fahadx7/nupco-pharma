@@ -201,9 +201,42 @@ body{font-family:'IBM Plex Sans Arabic',system-ui,sans-serif;background:var(--bg
 .accent-grid{display:flex;gap:9px;flex-wrap:wrap}
 .accent-dot{width:32px;height:32px;border-radius:99px;cursor:pointer;border:2.5px solid transparent;transition:all .15s}
 .accent-dot.active{border-color:var(--text);transform:scale(1.18)}
+
+/* Update Banner */
+.update-banner{
+  display:none; position:fixed; top:0; left:0; right:0; z-index:9000;
+  background:linear-gradient(135deg,var(--accent),var(--sky));
+  color:var(--bg); padding:10px 18px;
+  align-items:center; gap:12px; font-size:var(--fs-sm); font-weight:500;
+  animation:slideDown .4s ease;
+}
+.update-banner.show{display:flex}
+@keyframes slideDown{from{transform:translateY(-100%)}to{transform:translateY(0)}}
+.update-banner-text{flex:1}
+.update-banner-btn{
+  background:rgba(0,0,0,0.2); color:inherit; border:1.5px solid rgba(255,255,255,0.4);
+  padding:6px 14px; border-radius:8px; cursor:pointer; font-size:var(--fs-sm);
+  font-weight:600; font-family:inherit; transition:background .15s;
+}
+.update-banner-btn:hover{background:rgba(0,0,0,0.35)}
+.update-banner-close{
+  background:none; border:none; color:inherit; cursor:pointer;
+  font-size:18px; opacity:.7; padding:2px 6px;
+}
+.update-banner-close:hover{opacity:1}
 </style>
 </head>
 <body>
+<!-- Update Banner -->
+<div class="update-banner" id="updateBanner">
+  <span style="font-size:18px">🆕</span>
+  <div class="update-banner-text">
+    <strong id="updateVersion">تحديث جديد متاح</strong>
+    <span id="updateDesc" style="opacity:.85;margin-right:8px"></span>
+  </div>
+  <button class="update-banner-btn" onclick="applyUpdate()">⬇️ تحديث الآن</button>
+  <button class="update-banner-close" onclick="dismissUpdate()" title="تجاهل">✕</button>
+</div>
 <div class="aurora"></div>
 
 <!-- AUTH -->
@@ -442,6 +475,48 @@ function setFontSize(s,el){
     if(fsEl){document.querySelectorAll('.fs-btn').forEach(b=>b.classList.remove('active'));fsEl.classList.add('active');}
   });
 })();
+
+
+// ══════ Auto Update ══════
+async function checkForUpdate() {
+  try {
+    const data = await fetch('/api/update/status').then(r=>r.json());
+    if (data.available) {
+      document.getElementById('updateVersion').textContent =
+        `🆕 تحديث v${data.latest} متاح (حالياً v${data.current})`;
+      document.getElementById('updateDesc').textContent =
+        data.changelog?.[0] || '';
+      document.getElementById('updateBanner').classList.add('show');
+      // Push topbar down
+      document.querySelector('.topbar').style.top = '46px';
+    }
+  } catch {}
+}
+async function applyUpdate() {
+  const btn = document.querySelector('.update-banner-btn');
+  btn.textContent = '⏳ جاري التحديث...';
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/update/apply', {method:'POST'}).then(r=>r.json());
+    if (r.success) {
+      document.getElementById('updateDesc').textContent = r.message;
+      setTimeout(() => location.reload(), 3000);
+    } else {
+      toast(r.message, 'warning');
+    }
+  } catch(e) {
+    toast('فشل التحديث: ' + e.message, 'error');
+    btn.textContent = '⬇️ تحديث الآن';
+    btn.disabled = false;
+  }
+}
+function dismissUpdate() {
+  document.getElementById('updateBanner').classList.remove('show');
+  document.querySelector('.topbar').style.top = '';
+}
+// فحص عند التشغيل + كل ساعة
+setTimeout(checkForUpdate, 3000);
+setInterval(checkForUpdate, 60*60*1000);
 
 // ══════ State ══════
 let allMeds=[],pendingMeds=[],activeTab='dashboard';

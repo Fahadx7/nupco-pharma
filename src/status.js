@@ -3,6 +3,7 @@ const express = require('express');
 const http    = require('http');
 const path    = require('path');
 const { CONFIG_PATH } = require('./setup');
+const updater = require('./updater');
 const { enableAutoStart, disableAutoStart, isAutoStartEnabled } = require('./autostart');
 
 let _startTime = Date.now();
@@ -12,13 +13,30 @@ function startStatusServer(pharmacyName, db) {
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
 
-    // ── Static: يخدم public/index.html ─────────────────────────
-    app.use(express.static(path.join(__dirname, '../public')));
+    // ── Static: يخدم public/index.html (no-cache) ───────────────
+    app.use(express.static(path.join(__dirname, '../public'), {
+        setHeaders: (res) => {
+            res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+            res.set('Pragma', 'no-cache');
+        }
+    }));
 
     // ── Auth bypass (تطبيق محلي) ────────────────────────────────
     app.post('/api/auth/login',    (_req, res) => res.json({ token:'local', user:{ id:1, name:pharmacyName, username:'admin' } }));
     app.post('/api/auth/register', (_req, res) => res.json({ token:'local', user:{ id:1, name:pharmacyName, username:'admin' } }));
     app.get('/api/auth/me',        (_req, res) => res.json({ user:{ id:1, name:pharmacyName, username:'admin' } }));
+
+    // ── API: نظام التحديث التلقائي ────────────────────────────────
+    app.get('/api/update/status', (_req, res) => {
+        res.json(updater.getStatus());
+    });
+    app.post('/api/update/apply', (req, res) => {
+        updater.applyUpdate(res);
+    });
+    app.post('/api/update/check', async (_req, res) => {
+        await updater.checkForUpdate(false);
+        res.json(updater.getStatus());
+    });
 
     // ── API: إحصائيات ───────────────────────────────────────────
     app.get('/api/stats', (_req, res) => {
@@ -181,6 +199,11 @@ function startStatusServer(pharmacyName, db) {
 
     const server = http.createServer(app);
     server.listen(3000, '127.0.0.1', () => {
+        // تهيئة نظام التحديث (bot+chatId من الـ config)
+        try {
+            const cfg = JSON.parse(require('fs').readFileSync(CONFIG_PATH,'utf8'));
+            updater.init(null, cfg.chatId); // bot يضاف لاحقاً عبر setBotRef
+        } catch { updater.init(null, null); }
         console.log('🌐 لوحة التحكم: http://localhost:3000');
     });
 

@@ -1,0 +1,12 @@
+{
+  "version": "5.1.0",
+  "build": "20260511",
+  "changelog": [
+    "إعدادات العرض: 6 ألوان، وضع ليلي/نهاري، 3 أحجام خط",
+    "رفع PDF عبر mupdf — بدون Ghostscript",
+    "تصميم مدمج جديد — Clinical Calm + Aurora",
+    "واجهة Desktop + Mobile محسّنة"
+  ],
+  "download_url": "https://raw.githubusercontent.com/Fahadx7/nupco-pharma/main/public/index.html",
+  "critical": false
+}

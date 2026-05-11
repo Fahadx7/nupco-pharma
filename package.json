@@ -4,7 +4,8 @@
   "description": "نظام إدارة أدوية نوبكو فارما",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "update": "node -e \"const u=require(\"./src/updater\");u.checkForUpdate(false).then(()=>u.applyUpdate({json:console.log}))\""
   },
   "dependencies": {
     "axios": "^1.6.2",
