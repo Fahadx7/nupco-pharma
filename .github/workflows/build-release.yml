@@ -1,0 +1,58 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build exe
+        run: npm run build
+
+      - name: Compile Inno Setup installer
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+        with:
+          path: nupco_pharma.iss
+          options: /O.
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "💊 نوبكو فارما ${{ github.ref_name }}"
+          body: |
+            ## 💊 نوبكو فارما ${{ github.ref_name }}
+
+            ### 📥 طريقة التثبيت:
+            1. نزّل `NupcoPharma_Setup.exe` من الأسفل
+            2. شغّل ملف الإعداد واتبع الخطوات
+            3. عند أول تشغيل أدخل بيانات البوت والصيدلية
+            4. ابدأ الاستخدام 🚀
+
+            ### ⚠️ ملاحظة SmartScreen:
+            إذا ظهر تحذير Windows — اضغط **"معلومات إضافية" ← "تشغيل على أي حال"**
+
+            ---
+            صنع بـ ❤️ بواسطة [فهد A](https://t.me/AbuAmran2000_10)
+          files: |
+            NupcoPharma_Setup_*.exe
+            dist/medtracker.exe
+            dist/better_sqlite3.node
